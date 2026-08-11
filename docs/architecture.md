@@ -212,6 +212,32 @@ flowchart LR
 
 The sidecar could reduce per-prompt startup latency, isolate provider credentials and Node.js dependencies, enforce separate CPU and memory limits, and restart independently. It must remain unable to open SQLite directly. This is a future option rather than a current requirement; its private interface, authentication, concurrency, health checks, and session-volume lifecycle need deliberate design before implementation.
 
+## Future capability roadmap
+
+The detailed roadmap lives in [`future-additions.md`](future-additions.md). Three planned workstreams are intentionally not enabled yet:
+
+1. A dedicated **Autonomous Agents** tab for supervised scheduled and long-running jobs, including budgets, checkpoints, leases, pause/stop controls, approvals, and ledger visibility.
+2. Permission-gated **MCP servers** that expose only user-approved tools and resources. MCP complements ACP rather than replacing it: ACP connects agent harnesses, while MCP connects those harnesses to additional tool providers.
+3. Repeatable **benchmarks** covering API and SQLite performance, agent startup and streaming, concurrency, sidecar comparisons, tool safety and recovery, resource use, and frontend responsiveness.
+
+```mermaid
+flowchart LR
+    User[User] --> UI[Dashboard]
+    UI --> API[FastAPI policy and data boundary]
+    API --> Jobs[Future autonomous job supervisor]
+    Jobs --> ACP[ACP-compatible harness]
+    ACP --> Gateway[Future MCP policy gateway]
+    Gateway --> LocalMCP[Approved local MCP server]
+    Gateway --> RemoteMCP[Approved remote MCP server]
+    LocalMCP -->|No direct database access| Tools[External tools and resources]
+    RemoteMCP -->|Approval required for side effects| Tools
+    API --> DB[(SQLite)]
+    Jobs --> Ledger[Agent Ledger]
+    Gateway --> Ledger
+```
+
+Autonomous jobs and MCP tools must remain behind FastAPI-owned policy, approvals, and auditing. No job, harness, sidecar, or MCP server may open SQLite directly. Benchmark fixtures must use synthetic data and must not upload personal conversation contents.
+
 ## ACP agent architecture
 
 ACP is the adapter boundary between Life Dashboard and an interchangeable agent. The agent does not open SQLite directly. FastAPI remains the owner of data access, permissions, auditing, and approvals.

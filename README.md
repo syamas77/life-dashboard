@@ -11,11 +11,11 @@ Bring schedules, priorities, notes, relationships, goals, and personal context i
 - **Web:** Next.js, TypeScript, Tailwind CSS, shadcn/ui, Framer Motion
 - **API:** FastAPI, Pydantic, SQLAlchemy, Alembic
 - **Storage:** SQLite locally, with a path to PostgreSQL
-- **Agents:** Adapter layer supporting Codex ACP and future ACP-compatible agents
+- **Agents:** Pi connected through ACP, with an adapter boundary for future ACP-compatible harnesses
 
 ## Architecture
 
-See [`docs/architecture.md`](docs/architecture.md) for Mermaid diagrams covering the local application, request flow, Docker direction, and database migrations.
+See [`docs/architecture.md`](docs/architecture.md) for Mermaid diagrams covering the local application, request flow, Docker direction, and database migrations. See [`docs/future-additions.md`](docs/future-additions.md) for the benchmark, Autonomous Agents, and MCP server roadmap.
 
 ## Development
 
@@ -51,7 +51,18 @@ SQLite is embedded and stores data directly in `apps/api/data/life.db`. It does 
 - Inbox
 - People
 - Agent
+- World
+- Ledger
 - Approval center
+
+## Future additions
+
+- A dedicated Autonomous Agents tab with schedules, budgets, checkpoints, approvals, pause/stop controls, and complete ledger visibility
+- Permission-gated MCP servers with per-tool allowlists, secret isolation, bounded execution, and approval routing for external side effects
+- Repeatable backend, agent-runtime, SQLite, recovery, and frontend benchmarks using synthetic data
+- An isolated agent sidecar and encrypted opt-in backups after benchmark and security validation
+
+These capabilities remain disabled until implemented. See the [future additions roadmap](docs/future-additions.md) for constraints and delivery order.
 
 ## Principles
 
