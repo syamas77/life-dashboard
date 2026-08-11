@@ -1,0 +1,144 @@
+from collections.abc import AsyncIterator
+from pathlib import Path
+
+from fastapi.testclient import TestClient
+
+from app.config import Settings
+from app.database import Base
+from app.main import create_app
+from app.routers import agent as agent_router
+
+
+def make_client(tmp_path: Path) -> TestClient:
+    settings = Settings(database_url=f"sqlite:///{tmp_path / 'test.db'}")
+    app = create_app(settings)
+    return TestClient(app)
+
+
+def test_health_reports_database_connection(tmp_path: Path) -> None:
+    with make_client(tmp_path) as client:
+        Base.metadata.create_all(client.app.state.engine)
+        response = client.get("/health")
+
+    assert response.status_code == 200
+    assert response.json() == {"status": "ok", "database": "connected"}
+
+
+def test_task_lifecycle(tmp_path: Path) -> None:
+    with make_client(tmp_path) as client:
+        Base.metadata.create_all(client.app.state.engine)
+
+        created = client.post(
+            "/api/v1/tasks",
+            json={"title": "Call Dad", "context": "Family"},
+        )
+        assert created.status_code == 201
+        task_id = created.json()["id"]
+
+        completed = client.patch(f"/api/v1/tasks/{task_id}", json={"completed": True})
+        assert completed.status_code == 200
+        assert completed.json()["completed_at"] is not None
+
+        listed = client.get("/api/v1/tasks", params={"completed": True})
+        assert [task["title"] for task in listed.json()] == ["Call Dad"]
+
+        deleted = client.delete(f"/api/v1/tasks/{task_id}")
+        assert deleted.status_code == 204
+        assert client.get(f"/api/v1/tasks/{task_id}").status_code == 404
+
+
+def test_agent_status_reports_pinned_adapter(tmp_path: Path) -> None:
+    with make_client(tmp_path) as client:
+        Base.metadata.create_all(client.app.state.engine)
+        response = client.get("/api/v1/agent/status")
+
+    assert response.status_code == 200
+    assert response.json()["adapter"] == "pi-acp@0.0.33"
+
+
+def test_agent_configuration_returns_pi_options(tmp_path: Path, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    async def fake_configuration(_settings: Settings) -> dict[str, object]:
+        return {
+            "options": [
+                {
+                    "id": "model",
+                    "name": "Model",
+                    "category": "model",
+                    "current_value": "openai/gpt-test",
+                    "options": [
+                        {
+                            "value": "openai/gpt-test",
+                            "name": "openai/Test",
+                            "description": None,
+                        }
+                    ],
+                }
+            ]
+        }
+
+    monkeypatch.setattr(agent_router, "get_pi_configuration", fake_configuration)
+    with make_client(tmp_path) as client:
+        Base.metadata.create_all(client.app.state.engine)
+        response = client.get("/api/v1/agent/configuration")
+
+    assert response.status_code == 200
+    assert response.json()["options"][0]["current_value"] == "openai/gpt-test"
+
+
+def test_agent_prompt_streams_server_sent_events(tmp_path: Path, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    async def fake_stream(
+        _settings: Settings,
+        prompt: str,
+        model: str | None = None,
+        thinking_level: str | None = None,
+        session_id: str | None = None,
+    ) -> AsyncIterator[dict[str, object]]:
+        assert prompt == "Remember to call Dad"
+        assert model == "openai/gpt-test"
+        assert thinking_level == "low"
+        assert session_id is None
+        yield {"type": "session", "session_id": "acp-session-1"}
+        yield {"type": "text_delta", "delta": "Saved it."}
+        yield {"type": "done", "stop_reason": "end_turn"}
+
+    monkeypatch.setattr(agent_router, "stream_pi_prompt", fake_stream)
+
+    with make_client(tmp_path) as client:
+        Base.metadata.create_all(client.app.state.engine)
+        conversation = client.post("/api/v1/agent/conversations", json={}).json()
+        response = client.post(
+            "/api/v1/agent/prompt",
+            json={
+                "conversation_id": conversation["id"],
+                "prompt": "Remember to call Dad",
+                "model": "openai/gpt-test",
+                "thinking_level": "low",
+            },
+        )
+        messages = client.get(
+            f"/api/v1/agent/conversations/{conversation['id']}/messages"
+        ).json()
+        saved_conversation = client.get("/api/v1/agent/conversations").json()[0]
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/event-stream")
+    assert "event: text_delta" in response.text
+    assert '"delta":"Saved it."' in response.text
+    assert "event: done" in response.text
+    assert [message["role"] for message in messages] == ["user", "assistant"]
+    assert messages[1]["content"] == "Saved it."
+    assert saved_conversation["acp_session_id"] == "acp-session-1"
+    assert saved_conversation["title"] == "Remember to call Dad"
+
+
+def test_inbox_item_can_be_processed(tmp_path: Path) -> None:
+    with make_client(tmp_path) as client:
+        Base.metadata.create_all(client.app.state.engine)
+
+        created = client.post("/api/v1/inbox", json={"content": "Renew passport"})
+        assert created.status_code == 201
+        item_id = created.json()["id"]
+
+        processed = client.patch(f"/api/v1/inbox/{item_id}", json={"processed": True})
+        assert processed.status_code == 200
+        assert processed.json()["processed_at"] is not None

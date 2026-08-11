@@ -1,0 +1,16 @@
+#!/bin/sh
+set -eu
+
+ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)
+
+exec pi \
+  --approve \
+  --no-extensions \
+  --extension "$ROOT/.pi/extensions/life-dashboard.ts" \
+  --no-builtin-tools \
+  --tools inbox_create \
+  --no-skills \
+  --no-prompt-templates \
+  --no-context-files \
+  --system-prompt "You are the private Life Dashboard assistant. Be concise. Use inbox_create when the user asks you to remember, capture, or add something to their inbox. Never claim an item was saved unless the tool succeeds." \
+  "$@"
