@@ -173,6 +173,7 @@ export default function Dashboard() {
   const [captureTarget, setCaptureTarget] = useState<CaptureTarget>("inbox");
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [apiOnline, setApiOnline] = useState<boolean | null>(null);
   const [apiError, setApiError] = useState<string | null>(null);
   const [agentInput, setAgentInput] = useState("");
   const [agentMessages, setAgentMessages] = useState<AgentMessage[]>([]);
@@ -198,16 +199,41 @@ export default function Dashboard() {
         if (!active) return;
         setTasks(taskData);
         setInboxItems(inboxData);
+        setApiOnline(true);
         setApiError(null);
       })
       .catch(() => {
-        if (active) setApiError("The local API is offline. Start FastAPI on port 8000 and try again.");
+        if (active) {
+          setApiOnline(false);
+          setApiError("The local API could not load dashboard data. Check FastAPI on port 8000.");
+        }
       })
       .finally(() => {
         if (active) setLoading(false);
       });
     return () => {
       active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+
+    const refreshHealth = () => {
+      api.getHealth()
+        .then(() => {
+          if (active) setApiOnline(true);
+        })
+        .catch(() => {
+          if (active) setApiOnline(false);
+        });
+    };
+
+    refreshHealth();
+    const interval = window.setInterval(refreshHealth, 5000);
+    return () => {
+      active = false;
+      window.clearInterval(interval);
     };
   }, []);
 
@@ -528,7 +554,7 @@ export default function Dashboard() {
             <kbd><Command size={11} weight="bold" /> K</kbd>
           </button>
           <div className="top-actions">
-            <span className={apiError ? "sync-state offline" : "sync-state"}><span /> {loading ? "Connecting" : apiError ? "API offline" : "Synced locally"}</span>
+            <span className={apiOnline === false ? "sync-state offline" : "sync-state"}><span /> {apiOnline === null || loading ? "Connecting" : apiOnline ? "Synced locally" : "API offline"}</span>
             <button className="icon-button" type="button" onClick={() => setDark((value) => !value)} aria-label="Toggle color theme">
               {dark ? <Sun size={18} weight="bold" /> : <Moon size={18} weight="bold" />}
             </button>

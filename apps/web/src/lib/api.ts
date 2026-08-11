@@ -1,4 +1,10 @@
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000/api/v1";
+const API_ORIGIN = API_BASE_URL.replace(/\/api\/v1\/?$/, "");
+
+export type HealthStatus = {
+  status: string;
+  database: string;
+};
 
 export type Task = {
   id: number;
@@ -149,6 +155,11 @@ async function streamAgentPrompt(
 }
 
 export const api = {
+  getHealth: async (): Promise<HealthStatus> => {
+    const response = await fetch(`${API_ORIGIN}/health`, { cache: "no-store" });
+    if (!response.ok) throw new Error("The local API health check failed.");
+    return response.json() as Promise<HealthStatus>;
+  },
   listTasks: () => request<Task[]>("/tasks"),
   createTask: (title: string) => request<Task>("/tasks", { method: "POST", body: { title, context: "Focus" } }),
   setTaskCompleted: (id: number, completed: boolean) => request<Task>(`/tasks/${id}`, { method: "PATCH", body: { completed } }),
