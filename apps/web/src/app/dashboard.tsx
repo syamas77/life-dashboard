@@ -833,7 +833,7 @@ export default function Dashboard() {
                     }
                   }}
                   placeholder="Message your agent"
-                  rows={3}
+                  rows={2}
                   disabled={agentRunning}
                 />
                 <button type="submit" disabled={agentRunning || !agentInput.trim()} aria-label="Send message"><ArrowRight size={18} weight="bold" /></button>
