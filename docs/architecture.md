@@ -218,7 +218,9 @@ The detailed roadmap lives in [`future-additions.md`](future-additions.md). Thre
 
 1. A dedicated **Autonomous Agents** tab for supervised scheduled and long-running jobs, including budgets, checkpoints, leases, pause/stop controls, approvals, and ledger visibility.
 2. Permission-gated **MCP servers** that expose only user-approved tools and resources. MCP complements ACP rather than replacing it: ACP connects agent harnesses, while MCP connects those harnesses to additional tool providers.
-3. Repeatable **benchmarks** covering API and SQLite performance, agent startup and streaming, concurrency, sidecar comparisons, tool safety and recovery, resource use, and frontend responsiveness.
+3. Repeatable **benchmarks** covering API and SQLite performance, agent startup and streaming, concurrency, indexing and retrieval, sidecar comparisons, tool safety and recovery, resource use, and frontend responsiveness.
+4. A user-controlled **People Graph** with separate individual, relationship, group, and owner memory scopes. Every generated memory needs provenance, correction, selective forgetting, and confirmation for sensitive inferences.
+5. A read-only-first **Obsidian connector** and a permissioned connector interface for selected external knowledge sources. Imported content remains untrusted data and cannot silently become agent instructions.
 
 ```mermaid
 flowchart LR
@@ -231,12 +233,16 @@ flowchart LR
     Gateway --> RemoteMCP[Approved remote MCP server]
     LocalMCP -->|No direct database access| Tools[External tools and resources]
     RemoteMCP -->|Approval required for side effects| Tools
+    Obsidian[Allowlisted Obsidian folders] --> Connectors[Future source connector boundary]
+    Sources[Other approved external sources] --> Connectors
+    Connectors -->|Provenance and untrusted content| API
+    API --> Graph[Graph-ready people and relationship memory]
     API --> DB[(SQLite)]
     Jobs --> Ledger[Agent Ledger]
     Gateway --> Ledger
 ```
 
-Autonomous jobs and MCP tools must remain behind FastAPI-owned policy, approvals, and auditing. No job, harness, sidecar, or MCP server may open SQLite directly. Benchmark fixtures must use synthetic data and must not upload personal conversation contents.
+Autonomous jobs, MCP tools, and source connectors must remain behind FastAPI-owned policy, approvals, and auditing. No job, harness, sidecar, MCP server, or source adapter may open SQLite directly. Relationship context must remain scoped so one person's private memory is not disclosed in another context by default. Imported notes, messages, pages, and MCP resources are untrusted content rather than executable instructions. Benchmark fixtures must use synthetic data and must not upload personal conversation contents.
 
 ## ACP agent architecture
 

@@ -59,7 +59,9 @@ SQLite is embedded and stores data directly in `apps/api/data/life.db`. It does 
 
 - A dedicated Autonomous Agents tab with schedules, budgets, checkpoints, approvals, pause/stop controls, and complete ledger visibility
 - Permission-gated MCP servers with per-tool allowlists, secret isolation, bounded execution, and approval routing for external side effects
-- Repeatable backend, agent-runtime, SQLite, recovery, and frontend benchmarks using synthetic data
+- A People Graph with individual, relationship, and group memory scopes, source provenance, correction, and selective forgetting
+- A read-only-first Obsidian “second brain” connector plus permissioned adapters for selected external knowledge sources
+- Repeatable backend, agent-runtime, SQLite, indexing, retrieval, recovery, and frontend benchmarks using synthetic data
 - An isolated agent sidecar and encrypted opt-in backups after benchmark and security validation
 
 These capabilities remain disabled until implemented. See the [future additions roadmap](docs/future-additions.md) for constraints and delivery order.

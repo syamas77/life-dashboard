@@ -39,6 +39,58 @@ Planned controls:
 
 Remote MCP support needs additional protection against untrusted content, prompt injection, credential leakage, server identity changes, and network requests to private or unexpected destinations.
 
+## People graph and relationship memory
+
+Expand the People area into a user-controlled personal relationship graph. The graph should represent individuals, groups, relationships, important events, commitments, shared interests, and links to source material without turning unverified model guesses into facts.
+
+Planned capabilities:
+
+- Generate an explorable graph from explicitly saved people records and user-approved source links
+- Open a person or relationship to see relevant notes, conversations, events, commitments, and recent changes
+- Keep separate memory scopes for an individual, a relationship between people, a group, and the dashboard owner
+- Let the user pin durable facts, mark temporary context, correct mistakes, merge duplicates, and forget selected memories
+- Attach provenance, confidence, creation time, last confirmation time, and source references to every generated memory
+- Require confirmation before storing inferred sensitive attributes, relationship labels, conflicts, health details, or financial details
+- Prevent one person's private context from being included in another person's prompt unless an explicit relationship rule allows it
+- Offer timeline and graph views without requiring a graph database initially; SQLite can store graph-ready nodes and edges first
+- Show exactly which memories will be sent to an agent before sensitive workflows
+
+Agent-generated summaries are derived views, not authoritative facts. Deleting a source should make dependent memories reviewable and optionally remove or regenerate them.
+
+## Obsidian and external knowledge sources
+
+Add a personal knowledge-source layer that can connect the dashboard to an Obsidian “second brain” and other user-approved sources while keeping the dashboard usable offline.
+
+### Obsidian connector
+
+Start with a local, read-only Obsidian vault connector:
+
+- Allowlist specific vaults, folders, and file patterns rather than indexing the entire filesystem
+- Parse Markdown, YAML frontmatter, tags, wikilinks, embeds, and backlinks
+- Preserve file paths and heading-level citations so every retrieved memory can open its original note
+- Watch for file changes and maintain a local incremental index
+- Treat write-back, note creation, renaming, and deletion as separately enabled actions that require preview and approval
+- Never modify `.obsidian` configuration or plugin files without an explicit dedicated permission
+
+The first implementation should work directly with local Markdown files and should not require an Obsidian plugin. A plugin can remain an optional later enhancement for richer events or UI integration.
+
+### Other external sources
+
+Use a connector interface for optional sources such as selected local folders, calendars, contacts, email, cloud drives, bookmarks, read-later services, and supported note applications.
+
+Every connector must provide:
+
+- Explicit opt-in, least-privilege scopes, and per-source pause/disconnect/delete controls
+- Read-only access by default and Approval Center routing for external writes
+- Incremental sync state, last-success time, errors, rate limits, and a clear offline state
+- Source provenance and deep links on indexed records and generated memories
+- Local encryption for stored tokens and exclusion of credentials from prompts, logs, and backups by default
+- A way to delete imported content and derived indexes without deleting the original source
+- Content-size limits, MIME validation, and quarantine for unsupported or suspicious files
+- Protection against prompt injection in imported notes, email, web pages, and MCP resources; source text is untrusted data, never agent instructions
+
+Retrieval should select the minimum relevant context and disclose which sources were used. Connecting a source must not automatically expose all of its content to every conversation, autonomous job, harness, or MCP server.
+
 ## Benchmarks
 
 Create a repeatable benchmark suite before introducing a long-running sidecar, autonomous jobs, additional harnesses, or MCP servers. Benchmarks should use synthetic fixtures and test credentials rather than personal conversations.
@@ -63,6 +115,9 @@ Benchmark reports should include the git revision, machine profile, dataset size
 2. Implement the isolated agent sidecar and compare it with the current per-prompt lifecycle.
 3. Add job persistence, budgets, checkpoints, and supervision APIs.
 4. Ship the read-only Autonomous Agents tab before enabling job creation.
-5. Add local stdio MCP servers with explicit per-tool allowlists.
-6. Connect external MCP side effects to approvals.
-7. Add remote MCP servers only after authentication, network policy, and secret-isolation reviews.
+5. Add graph-ready People records, provenance, and manual memory controls before generating relationship summaries.
+6. Add the read-only, folder-allowlisted Obsidian connector and benchmark local indexing and retrieval.
+7. Add other external sources one at a time through the permissioned connector interface.
+8. Add local stdio MCP servers with explicit per-tool allowlists.
+9. Connect external MCP side effects to approvals.
+10. Add remote MCP servers only after authentication, network policy, and secret-isolation reviews.
