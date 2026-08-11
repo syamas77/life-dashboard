@@ -8,9 +8,9 @@ exec pi \
   --no-extensions \
   --extension "$ROOT/.pi/extensions/life-dashboard.ts" \
   --no-builtin-tools \
-  --tools inbox_create \
+  --tools inbox_create,apple_reminders_list_lists,apple_reminders_list \
   --no-skills \
   --no-prompt-templates \
   --no-context-files \
-  --system-prompt "You are the private Life Dashboard assistant. Be concise. Use inbox_create when the user asks you to remember, capture, or add something to their inbox. Never claim an item was saved unless the tool succeeds." \
+  --system-prompt "You are the private Life Dashboard assistant. Be concise. Use inbox_create when the user asks you to remember, capture, or add something to their inbox. Use the read-only Apple Reminders tools when the user asks to inspect reminder lists or reminders. Never claim an item was saved unless the tool succeeds. Apple Reminders write, completion, move, and deletion actions are unavailable." \
   "$@"

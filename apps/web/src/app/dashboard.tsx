@@ -19,6 +19,7 @@ import {
   Moon,
   PaperPlaneTilt,
   Plus,
+  PlugsConnected,
   Robot,
   ShieldCheck,
   Sparkle,
@@ -32,9 +33,9 @@ import type { FormEvent } from "react";
 
 import { ShiningText } from "@/components/ui/shining-text";
 import { api } from "@/lib/api";
-import type { AgentConfigOption, AgentConversation, AgentEvent, AgentLedgerEntry, AgentRun, InboxItem, Task } from "@/lib/api";
+import type { AgentConfigOption, AgentConversation, AgentEvent, AgentLedgerEntry, AgentRun, InboxItem, McpServer, McpTool, Task } from "@/lib/api";
 
-type Area = "Today" | "Inbox" | "People" | "Agent" | "World" | "Ledger" | "Approvals";
+type Area = "Today" | "Inbox" | "People" | "Agent" | "World" | "Ledger" | "MCP" | "Approvals";
 type CaptureTarget = "inbox" | "task";
 type AgentMessage = { id: number; role: "user" | "assistant"; content: string };
 
@@ -45,6 +46,7 @@ const navigation = [
   { label: "Agent" as Area, icon: Sparkle, count: null },
   { label: "World" as Area, icon: Robot, count: null },
   { label: "Ledger" as Area, icon: ClipboardText, count: null },
+  { label: "MCP" as Area, icon: PlugsConnected, count: null },
   { label: "Approvals" as Area, icon: ShieldCheck, count: 2 },
 ];
 
@@ -69,6 +71,11 @@ const areaCopy: Record<Exclude<Area, "Today" | "World" | "Ledger">, { title: str
     title: "Delegate with context.",
     body: "Your agent can prepare work, but external actions always wait for you.",
     action: "Start a request",
+  },
+  MCP: {
+    title: "Connect trusted tools.",
+    body: "Add local MCP servers, inspect their tools, and allow only the read-only capabilities you trust.",
+    action: "Add MCP server",
   },
   Approvals: {
     title: "You stay in control.",
@@ -147,6 +154,21 @@ function AgentWorld({ runs }: { runs: AgentRun[] }) {
   );
 }
 
+function toolsForMcpServer(server: McpServer, testedTools: Record<string, McpTool[]>): McpTool[] {
+  if (testedTools[server.id]) return testedTools[server.id];
+  return server.discovered_tools.map((raw) => {
+    const annotations = (raw.annotations ?? {}) as Record<string, unknown>;
+    return {
+      name: String(raw.name ?? ""),
+      title: typeof raw.title === "string" ? raw.title : null,
+      description: typeof raw.description === "string" ? raw.description : null,
+      input_schema: (raw.inputSchema ?? {}) as Record<string, unknown>,
+      read_only: annotations.readOnlyHint === true,
+      destructive: annotations.destructiveHint === true,
+    };
+  }).filter((tool) => tool.name);
+}
+
 function prettyLedgerValue(value: string): string {
   try {
     return JSON.stringify(JSON.parse(value), null, 2);
@@ -188,6 +210,11 @@ export default function Dashboard() {
   const [agentRuns, setAgentRuns] = useState<AgentRun[]>([]);
   const [agentLedger, setAgentLedger] = useState<AgentLedgerEntry[]>([]);
   const [agentLedgerLoading, setAgentLedgerLoading] = useState(false);
+  const [mcpServers, setMcpServers] = useState<McpServer[]>([]);
+  const [mcpTools, setMcpTools] = useState<Record<string, McpTool[]>>({});
+  const [mcpLoading, setMcpLoading] = useState(true);
+  const [mcpTestingId, setMcpTestingId] = useState<string | null>(null);
+  const [mcpTestResult, setMcpTestResult] = useState<string | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [dark, setDark] = useState(false);
@@ -286,6 +313,22 @@ export default function Dashboard() {
   }, [area]);
 
   useEffect(() => {
+    if (area !== "MCP") return;
+    let active = true;
+    api.listMcpServers()
+      .then((servers) => {
+        if (active) setMcpServers(servers);
+      })
+      .catch((error) => {
+        if (active) setApiError(error instanceof Error ? error.message : "MCP servers could not be loaded.");
+      })
+      .finally(() => {
+        if (active) setMcpLoading(false);
+      });
+    return () => { active = false; };
+  }, [area]);
+
+  useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
@@ -357,6 +400,89 @@ export default function Dashboard() {
       setAgentInput("");
     } catch (error) {
       setApiError(error instanceof Error ? error.message : "A new conversation could not be created.");
+    }
+  }
+
+  async function testMcpServer(serverId: string) {
+    setMcpTestingId(serverId);
+    setApiError(null);
+    try {
+      const result = await api.testMcpServer(serverId);
+      setMcpServers((servers) => servers.map((server) => server.id === serverId ? result.server : server));
+      setMcpTools((tools) => ({ ...tools, [serverId]: result.tools }));
+    } catch (error) {
+      setApiError(error instanceof Error ? error.message : "The MCP server test failed.");
+      const servers = await api.listMcpServers().catch(() => []);
+      if (servers.length) setMcpServers(servers);
+    } finally {
+      setMcpTestingId(null);
+    }
+  }
+
+  async function setMcpServerEnabled(server: McpServer, enabled: boolean) {
+    try {
+      const updated = await api.updateMcpServer(server.id, { enabled });
+      setMcpServers((servers) => servers.map((item) => item.id === server.id ? updated : item));
+    } catch (error) {
+      setApiError(error instanceof Error ? error.message : "The MCP server could not be updated.");
+    }
+  }
+
+  async function setMcpToolAllowed(server: McpServer, toolName: string, allowed: boolean) {
+    const allowedTools = allowed
+      ? [...new Set([...server.allowed_tools, toolName])]
+      : server.allowed_tools.filter((name) => name !== toolName);
+    try {
+      const updated = await api.updateMcpServer(server.id, { allowed_tools: allowedTools });
+      setMcpServers((servers) => servers.map((item) => item.id === server.id ? updated : item));
+    } catch (error) {
+      setApiError(error instanceof Error ? error.message : "The MCP tool policy could not be updated.");
+    }
+  }
+
+  async function removeMcpServer(server: McpServer) {
+    if (server.built_in) return;
+    try {
+      await api.deleteMcpServer(server.id);
+      setMcpServers((servers) => servers.filter((item) => item.id !== server.id));
+    } catch (error) {
+      setApiError(error instanceof Error ? error.message : "The MCP server could not be removed.");
+    }
+  }
+
+  async function runMcpToolTest(server: McpServer, toolName: string) {
+    setMcpTestingId(server.id);
+    setMcpTestResult(null);
+    setApiError(null);
+    try {
+      const result = await api.callMcpTool(server.id, toolName);
+      setMcpTestResult(JSON.stringify(result.structured_content ?? result.content, null, 2));
+    } catch (error) {
+      setApiError(error instanceof Error ? error.message : "The MCP tool test failed.");
+    } finally {
+      setMcpTestingId(null);
+    }
+  }
+
+  async function addMcpServer(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const args = String(form.get("args") ?? "").split("\n").map((value) => value.trim()).filter(Boolean);
+    setMcpLoading(true);
+    try {
+      const server = await api.addMcpServer({
+        name: String(form.get("name") ?? "").trim(),
+        command: String(form.get("command") ?? "").trim(),
+        args,
+        cwd: String(form.get("cwd") ?? "").trim() || undefined,
+        confirmed_risk: form.get("confirmed_risk") === "on",
+      });
+      setMcpServers((servers) => [...servers, server]);
+      event.currentTarget.reset();
+    } catch (error) {
+      setApiError(error instanceof Error ? error.message : "The MCP server could not be added.");
+    } finally {
+      setMcpLoading(false);
     }
   }
 
@@ -789,6 +915,75 @@ export default function Dashboard() {
               </div>
             </section>
             <footer className="privacy-note"><Database size={14} weight="fill" /> Ledger events stay in life.db indefinitely. Encrypted, opt-in cloud backups are planned.</footer>
+          </div>
+        ) : area === "MCP" ? (
+          <div className="content mcp-view reveal">
+            <header className="mcp-page-header">
+              <div>
+                <p className="date"><PlugsConnected size={15} weight="duotone" /> Local tool connections</p>
+                <h1>MCP servers</h1>
+                <p>Add trusted local servers, inspect what they expose, and allow tools one at a time.</p>
+              </div>
+              <span>{mcpServers.filter((server) => server.enabled).length} enabled</span>
+            </header>
+
+            <aside className="mcp-risk-note">
+              <LockKey size={17} weight="fill" />
+              <div><strong>Adding a server runs local code.</strong><span>Life never installs packages automatically. Use software you trust; commands run with your macOS user permissions and without a shell.</span></div>
+            </aside>
+
+            <section className="mcp-server-list">
+              {mcpLoading && !mcpServers.length ? <div className="mcp-empty">Loading local MCP configuration</div> : mcpServers.map((server) => {
+                const tools = toolsForMcpServer(server, mcpTools);
+                return (
+                  <article className="mcp-server-card" key={server.id}>
+                    <header>
+                      <div className="mcp-server-icon"><PlugsConnected size={20} weight="duotone" /></div>
+                      <div><strong>{server.name}</strong><span>{server.built_in ? "Bundled with Life Dashboard" : "Custom local server"}</span></div>
+                      <label className="mcp-toggle"><input type="checkbox" checked={server.enabled} onChange={(event) => void setMcpServerEnabled(server, event.target.checked)} /><span>{server.enabled ? "Enabled" : "Disabled"}</span></label>
+                    </header>
+                    <code>{[server.command, ...server.args].join(" ")}</code>
+                    <div className="mcp-server-actions">
+                      <button type="button" onClick={() => void testMcpServer(server.id)} disabled={mcpTestingId === server.id}>{mcpTestingId === server.id ? "Testing…" : "Test connection"}</button>
+                      {!server.built_in ? <button type="button" onClick={() => void removeMcpServer(server)}>Remove</button> : null}
+                      <span>{server.last_tested_at ? `Last tested ${new Intl.DateTimeFormat("en", { hour: "numeric", minute: "2-digit" }).format(new Date(server.last_tested_at))}` : "Not tested yet"}</span>
+                    </div>
+                    {server.last_error ? <p className="mcp-server-error">{server.last_error}</p> : null}
+                    {tools.length ? (
+                      <div className="mcp-tool-list">
+                        {tools.map((tool) => {
+                          const safe = tool.read_only && !tool.destructive;
+                          const allowed = server.allowed_tools.includes(tool.name);
+                          return (
+                            <div className="mcp-tool-row" key={tool.name}>
+                              <div><strong>{tool.title ?? tool.name}</strong><span>{tool.description ?? tool.name}</span></div>
+                              <span className={safe ? "mcp-readonly" : "mcp-unsafe"}>{safe ? "Read only" : "Blocked"}</span>
+                              <label><input type="checkbox" checked={allowed} disabled={!safe} onChange={(event) => void setMcpToolAllowed(server, tool.name, event.target.checked)} /> Allow</label>
+                              <button type="button" disabled={!server.enabled || !allowed || !safe || mcpTestingId === server.id} onClick={() => void runMcpToolTest(server, tool.name)}>Run</button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : <p className="mcp-no-tools">Test the connection to inspect this server&apos;s tools.</p>}
+                  </article>
+                );
+              })}
+            </section>
+
+            {mcpTestResult ? <section className="mcp-test-output"><header><strong>Latest read-only tool result</strong><button type="button" onClick={() => setMcpTestResult(null)}><X size={13} /></button></header><pre>{mcpTestResult}</pre></section> : null}
+
+            <details className="mcp-add-server">
+              <summary><Plus size={14} weight="bold" /> Add a local MCP server</summary>
+              <form onSubmit={addMcpServer}>
+                <label><span>Name</span><input name="name" required maxLength={100} placeholder="My trusted MCP server" /></label>
+                <label><span>Absolute executable path</span><input name="command" required maxLength={500} placeholder="/opt/homebrew/bin/node" /></label>
+                <label><span>Arguments, one per line</span><textarea name="args" rows={3} placeholder="/absolute/path/to/server.js" /></label>
+                <label><span>Working directory (optional)</span><input name="cwd" maxLength={500} placeholder="/absolute/path/to/project" /></label>
+                <label className="mcp-confirm"><input name="confirmed_risk" type="checkbox" required /><span>I trust this server and understand that adding it executes local code with my user permissions.</span></label>
+                <button type="submit" disabled={mcpLoading}>Add disabled server</button>
+              </form>
+            </details>
+            <footer className="privacy-note"><ShieldCheck size={14} weight="fill" /> Only enabled and explicitly allowed read-only tools can run. Tests and calls are recorded in the Ledger.</footer>
           </div>
         ) : area === "Agent" ? (
           <div className="content agent-view reveal">

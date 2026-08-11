@@ -4,11 +4,14 @@ Local FastAPI service backed by an embedded SQLite database.
 
 ## Local development
 
-Install the pinned Pi ACP bridge once:
+Install the pinned Pi ACP bridge and build the MCP policy gateway once:
 
 ```bash
 cd ../agent
 npm install
+cd ../mcp-apple-reminders
+npm install
+npm run build
 cd ../api
 ```
 
@@ -30,10 +33,13 @@ The service is available at:
 - Saved conversations: http://127.0.0.1:8000/api/v1/agent/conversations
 - Active agent runs: http://127.0.0.1:8000/api/v1/agent/runs
 - Persistent agent ledger: http://127.0.0.1:8000/api/v1/agent/ledger
+- Local MCP servers: http://127.0.0.1:8000/api/v1/mcp/servers
 
 By default, personal data is stored in `data/life.db`. This file is ignored by Git.
 
-The agent endpoint uses the official Python ACP SDK to launch the pinned `pi-acp` adapter. The restricted launcher at `.pi/bin/life-pi` enables only the project-owned `inbox_create` tool. Pi must already be installed and authenticated on the machine.
+The agent endpoint uses the official Python ACP SDK to launch the pinned `pi-acp` adapter. The restricted launcher at `.pi/bin/life-pi` enables only the project-owned `inbox_create` tool and two read-only Apple Reminders tools. Pi must already be installed and authenticated on the machine.
+
+The MCP policy API stores local server launch configuration in `data/mcp-servers.json` with mode `0600`. The dashboard can add already-installed stdio servers, test them, and allow read-only tools. It never installs MCP packages. Custom servers require an absolute executable, start disabled, inherit no custom secrets, and receive no tool permissions until they have been tested and explicitly allowed. MCP tests and calls are recorded in the Agent Ledger.
 
 Agent conversation metadata and visible messages are stored in SQLite. The ACP session ID reconnects each conversation to Pi's persisted JSONL context, allowing later requests and application restarts to resume the same session. The Agent Ledger stores run lifecycle, configuration, tool, outcome, and failure events locally for inspection.
 

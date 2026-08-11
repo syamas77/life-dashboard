@@ -8,10 +8,16 @@ from app.config import Settings
 from app.database import Base
 from app.main import create_app
 from app.routers import agent as agent_router
+from app.routers import mcp as mcp_router
 
 
 def make_client(tmp_path: Path) -> TestClient:
-    settings = Settings(database_url=f"sqlite:///{tmp_path / 'test.db'}")
+    settings = Settings(
+        database_url=f"sqlite:///{tmp_path / 'test.db'}",
+        mcp_config_path=str(tmp_path / "mcp-servers.json"),
+        mcp_gateway_script=str(tmp_path / "gateway.js"),
+        mcp_apple_reminders_script=str(tmp_path / "apple-reminders.js"),
+    )
     app = create_app(settings)
     return TestClient(app)
 
@@ -172,6 +178,69 @@ def test_agent_prompt_streams_server_sent_events(tmp_path: Path, monkeypatch) ->
     assert ledger[1]["output_json"] == '{"itemId":42}'
     assert all(entry["conversation_id"] is None for entry in preserved_ledger)
     assert all(entry["conversation_title"] == "Deleted conversation" for entry in preserved_ledger)
+
+
+def test_mcp_server_can_be_added_tested_allowed_and_called(tmp_path: Path, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    async def fake_gateway(_settings, _server, *, action, tool=None, arguments=None):  # type: ignore[no-untyped-def]
+        if action == "inspect":
+            return {
+                "tools": [
+                    {
+                        "name": "read_notes",
+                        "title": "Read notes",
+                        "description": "Read selected notes",
+                        "inputSchema": {"type": "object"},
+                        "annotations": {
+                            "readOnlyHint": True,
+                            "destructiveHint": False,
+                        },
+                    }
+                ],
+                "truncated": False,
+            }
+        assert tool == "read_notes"
+        assert arguments == {"limit": 2}
+        return {
+            "isError": False,
+            "content": [{"type": "text", "text": "two notes"}],
+            "structuredContent": {"count": 2},
+        }
+
+    monkeypatch.setattr(mcp_router, "run_mcp_gateway", fake_gateway)
+    with make_client(tmp_path) as client:
+        Base.metadata.create_all(client.app.state.engine)
+        rejected = client.post(
+            "/api/v1/mcp/servers",
+            json={"name": "Notes", "command": "/usr/bin/true", "confirmed_risk": False},
+        )
+        created = client.post(
+            "/api/v1/mcp/servers",
+            json={"name": "Notes", "command": "/usr/bin/true", "confirmed_risk": True},
+        )
+        server_id = created.json()["id"]
+        tested = client.post(f"/api/v1/mcp/servers/{server_id}/test")
+        configured = client.patch(
+            f"/api/v1/mcp/servers/{server_id}",
+            json={"enabled": True, "allowed_tools": ["read_notes"]},
+        )
+        called = client.post(
+            f"/api/v1/mcp/servers/{server_id}/tools/read_notes/call",
+            json={"arguments": {"limit": 2}},
+        )
+        ledger = client.get("/api/v1/agent/ledger").json()
+
+    assert rejected.status_code == 400
+    assert created.status_code == 201
+    assert created.json()["enabled"] is False
+    assert tested.status_code == 200
+    assert tested.json()["tools"][0]["read_only"] is True
+    assert configured.json()["allowed_tools"] == ["read_notes"]
+    assert called.status_code == 200
+    assert called.json()["structured_content"] == {"count": 2}
+    assert [entry["event_type"] for entry in reversed(ledger)] == [
+        "mcp_server_tested",
+        "mcp_tool_called",
+    ]
 
 
 def test_inbox_item_can_be_processed(tmp_path: Path) -> None:

@@ -66,7 +66,7 @@ SQLite is embedded and stores data directly in `apps/api/data/life.db`. It does 
 ## Implemented integrations
 
 - Pi through ACP for persistent local agent conversations
-- A standalone, read-only Apple Reminders MCP server with list and search tools; the dashboard policy gateway is the next integration step
+- A read-only Apple Reminders MCP server connected through a FastAPI policy gateway, dashboard testing UI, per-tool allowlists, Pi bridge, and ledger events
 
 ## Future additions
 

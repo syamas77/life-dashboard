@@ -80,6 +80,35 @@ export type AgentRun = {
   elapsed_seconds: number;
 };
 
+export type McpTool = {
+  name: string;
+  title: string | null;
+  description: string | null;
+  input_schema: Record<string, unknown>;
+  read_only: boolean;
+  destructive: boolean;
+};
+
+export type McpServer = {
+  id: string;
+  name: string;
+  command: string;
+  args: string[];
+  cwd: string | null;
+  enabled: boolean;
+  built_in: boolean;
+  allowed_tools: string[];
+  discovered_tools: Array<Record<string, unknown>>;
+  last_tested_at: string | null;
+  last_error: string | null;
+};
+
+export type McpServerTest = {
+  server: McpServer;
+  tools: McpTool[];
+  truncated: boolean;
+};
+
 export type AgentMessageRecord = {
   id: number;
   conversation_id: number;
@@ -173,5 +202,11 @@ export const api = {
   createAgentConversation: () => request<AgentConversation>("/agent/conversations", { method: "POST", body: {} }),
   listAgentMessages: (conversationId: number) => request<AgentMessageRecord[]>(`/agent/conversations/${conversationId}/messages`),
   deleteAgentConversation: (conversationId: number) => request<void>(`/agent/conversations/${conversationId}`, { method: "DELETE" }),
+  listMcpServers: () => request<McpServer[]>("/mcp/servers"),
+  addMcpServer: (payload: { name: string; command: string; args: string[]; cwd?: string; confirmed_risk: boolean }) => request<McpServer>("/mcp/servers", { method: "POST", body: payload }),
+  testMcpServer: (id: string) => request<McpServerTest>(`/mcp/servers/${id}/test`, { method: "POST" }),
+  updateMcpServer: (id: string, payload: { enabled?: boolean; allowed_tools?: string[] }) => request<McpServer>(`/mcp/servers/${id}`, { method: "PATCH", body: payload }),
+  callMcpTool: (serverId: string, toolName: string, argumentsValue: Record<string, unknown> = {}) => request<{ is_error: boolean; content: Array<Record<string, unknown>>; structured_content: Record<string, unknown> | null }>(`/mcp/servers/${serverId}/tools/${toolName}/call`, { method: "POST", body: { arguments: argumentsValue } }),
+  deleteMcpServer: (id: string) => request<void>(`/mcp/servers/${id}`, { method: "DELETE" }),
   streamAgentPrompt,
 };

@@ -173,21 +173,29 @@ flowchart TB
 
 Tasks and inbox captures now use the API client and persist in SQLite. The schedule and approval cards still use sample in-memory data until their backend models are implemented.
 
-## Read-only Apple Reminders MCP server
+## MCP policy gateway and Apple Reminders
 
 `apps/mcp-apple-reminders` is the first implemented MCP server. It is a project-owned Node.js process using the official MCP TypeScript SDK and local stdio transport. It exposes only `apple_reminders_list_lists` and `apple_reminders_list`; both are annotated read-only and non-destructive. Reminder notes are excluded by default, inputs and results are bounded, and JXA is executed through `execFile` without a shell or user-input interpolation.
 
+FastAPI now owns a local MCP registry and policy API. The MCP dashboard tab can add an already-installed stdio server by absolute executable path, test protocol negotiation, inspect its tools, enable or disable it, and allow verified read-only tools one at a time. Adding a custom server never installs software and requires an explicit arbitrary-code warning. Custom servers start disabled with an empty allowlist.
+
 ```mermaid
 flowchart LR
-    Inspector[Official MCP client or Inspector] <-->|MCP JSON-RPC over stdio| Server[Life Apple Reminders MCP server]
+    UI[Dashboard MCP tab] -->|Add, test, enable, allow| API[FastAPI MCP policy API]
+    Pi[Restricted Pi read tools] -->|Local HTTP tool call| API
+    API --> Config[(Local mcp-servers.json mode 0600)]
+    API -->|Bounded JSON over stdin| Gateway[Node MCP policy gateway]
+    Gateway <-->|MCP JSON-RPC over stdio| Server[Approved local MCP server]
     Server -->|Direct process invocation; no shell| OSA[/usr/bin/osascript]
     OSA -->|JXA read operations| Reminders[macOS Reminders]
     MacOS[macOS privacy permission] --> OSA
+    API --> Ledger[(Agent Ledger in life.db)]
     Server -. No access .-> DB[(life.db)]
-    Server -. No network listener .-> Network[Network]
 ```
 
-The real macOS list and reminder read paths and an end-to-end MCP stdio client call have been verified. This server is not yet connected to the restricted Pi harness or FastAPI. The next step is a dashboard-owned MCP client and policy gateway that records bounded tool events in the ledger. Create, update, complete, move, and delete operations remain absent until they can route through explicit approvals.
+The gateway starts configured commands with argument arrays and `shell: false`, inherits only the MCP SDK's restricted environment set, limits messages and execution time, and kills the process group on an API timeout. It re-inspects tools before every call and only runs a tool when it is allowlisted and advertises `readOnlyHint: true` without `destructiveHint: true`. Annotations from external servers are still claims rather than a sandbox, so users must trust any server they add. Tests and calls create bounded ledger events.
+
+The real FastAPI → Node gateway → MCP stdio → Apple Reminders path has been verified. The restricted Pi extension can reach the same two read-only tools through FastAPI, so they can be exercised from the dashboard Agent view after restarting FastAPI. Create, update, complete, move, and delete operations remain absent until they can route through explicit approvals.
 
 ## Future Docker deployment
 
@@ -233,7 +241,7 @@ The sidecar could reduce per-prompt startup latency, isolate provider credential
 The detailed roadmap lives in [`future-additions.md`](future-additions.md). Three planned workstreams are intentionally not enabled yet:
 
 1. A dedicated **Autonomous Agents** tab for supervised scheduled and long-running jobs, including budgets, checkpoints, leases, pause/stop controls, approvals, and ledger visibility.
-2. Permission-gated **MCP servers** that expose only user-approved tools and resources. MCP complements ACP rather than replacing it: ACP connects agent harnesses, while MCP connects those harnesses to additional tool providers.
+2. Additional and remote **MCP servers**, resources, and approval-gated write tools. The local stdio registry, testing UI, read-only allowlists, ledger events, Apple Reminders server, and policy gateway are implemented. MCP complements ACP rather than replacing it: ACP connects agent harnesses, while MCP connects those harnesses to additional tool providers.
 3. Repeatable **benchmarks** covering API and SQLite performance, agent startup and streaming, concurrency, indexing and retrieval, sidecar comparisons, tool safety and recovery, resource use, and frontend responsiveness.
 4. A user-controlled **People Graph** with separate individual, relationship, group, and owner memory scopes. Every generated memory needs provenance, correction, selective forgetting, and confirmation for sensitive inferences.
 5. A read-only-first **Obsidian connector** and a permissioned connector interface for selected external knowledge sources. Imported content remains untrusted data and cannot silently become agent instructions.
@@ -246,7 +254,7 @@ flowchart LR
     UI --> API[FastAPI policy and data boundary]
     API --> Jobs[Future autonomous job supervisor]
     Jobs --> ACP[ACP-compatible harness]
-    ACP --> Gateway[Future MCP policy gateway]
+    ACP --> Gateway[Current MCP policy gateway]
     Gateway --> LocalMCP[Approved local MCP server]
     Gateway --> RemoteMCP[Approved remote MCP server]
     LocalMCP -->|No direct database access| Tools[External tools and resources]

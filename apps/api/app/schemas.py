@@ -132,6 +132,58 @@ class AgentStatusRead(ApiModel):
     detail: str
 
 
+class McpToolRead(ApiModel):
+    name: str
+    title: str | None = None
+    description: str | None = None
+    input_schema: dict[str, object] = Field(default_factory=dict)
+    read_only: bool = False
+    destructive: bool = False
+
+
+class McpServerRead(ApiModel):
+    id: str
+    name: str
+    command: str
+    args: list[str]
+    cwd: str | None
+    enabled: bool
+    built_in: bool
+    allowed_tools: list[str]
+    discovered_tools: list[dict[str, object]]
+    last_tested_at: datetime | None
+    last_error: str | None
+
+
+class McpServerCreate(ApiModel):
+    name: str = Field(min_length=1, max_length=100)
+    command: str = Field(min_length=1, max_length=500)
+    args: list[str] = Field(default_factory=list, max_length=30)
+    cwd: str | None = Field(default=None, max_length=500)
+    confirmed_risk: bool = False
+
+
+class McpServerUpdate(ApiModel):
+    enabled: bool | None = None
+    allowed_tools: list[str] | None = Field(default=None, max_length=100)
+
+
+class McpServerTestRead(ApiModel):
+    server: McpServerRead
+    tools: list[McpToolRead]
+    truncated: bool
+
+
+class McpToolCall(ApiModel):
+    arguments: dict[str, object] = Field(default_factory=dict)
+
+
+class McpToolCallRead(ApiModel):
+    is_error: bool
+    content: list[dict[str, object]]
+    structured_content: dict[str, object] | None
+
+
 class HealthRead(ApiModel):
     status: str
     database: str

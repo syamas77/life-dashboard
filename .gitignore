@@ -41,3 +41,4 @@ htmlcov/
 *.sqlite
 *.sqlite3
 /data/
+**/data/

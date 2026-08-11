@@ -85,6 +85,8 @@ Use an absolute path. The MCP host—not Terminal—may need its own macOS Remin
 
 Apple's JXA bridge can be slow for synced libraries. The implementation batches each property across the Reminders collection to avoid one Apple Event per reminder. A future signed EventKit helper can improve performance without changing the MCP tool contract.
 
-## Not yet connected to the dashboard agent
+## Dashboard integration
 
-The MCP server and real macOS read path work independently. The restricted Pi harness does not receive these tools yet. The next integration step is a project-owned MCP client/policy gateway that exposes the two read-only tools to Pi, records bounded calls in the ledger, and keeps future write tools behind explicit approvals.
+FastAPI launches the project-owned Node MCP policy gateway, which connects to this server over stdio. The MCP dashboard tab can test the connection, inspect tools, enable or disable the server, update its read-only allowlist, and run a bounded tool test. Tests and calls are recorded in the Agent Ledger.
+
+The restricted Pi extension exposes the two Apple Reminders tools by calling FastAPI, not by launching this process directly. Restart FastAPI after building the MCP package, open the MCP tab, test the bundled server, then ask the Agent to list or inspect Apple Reminders. Future write, completion, move, and deletion tools remain blocked until Approval Center integration exists.
