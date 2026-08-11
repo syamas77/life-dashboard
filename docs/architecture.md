@@ -342,7 +342,7 @@ Deleting or moving Pi's session file prevents ACP context restoration even if th
 
 `agent_ledger_entries` is an application-owned, append-oriented audit timeline. FastAPI writes entries at run start, ACP session connection, tool start, tool completion or failure, and terminal run outcome. It intentionally does not write one entry per text chunk.
 
-The ledger can retain metadata after a conversation is deleted because its conversation foreign key uses `ON DELETE SET NULL`. Tool inputs and outputs are bounded before storage and remain local in SQLite. The current ledger is useful for inspection, but it is not tamper-proof compliance storage because a user with direct file access can modify SQLite.
+The ledger can retain metadata after a conversation is deleted because its conversation foreign key uses `ON DELETE SET NULL`. Tool inputs and outputs are bounded before storage and remain local in SQLite. Ledger events currently have no automatic expiration and remain until the user directly removes them or a future retention control is implemented. The current ledger is useful for inspection, but it is not tamper-proof compliance storage because a user with direct file access can modify SQLite.
 
 ```mermaid
 flowchart LR
@@ -359,6 +359,30 @@ flowchart LR
     Outcome --> Ledger
     Ledger --> View[Dashboard Ledger view]
 ```
+
+### Future opt-in backup and restore
+
+Life Dashboard remains local-only by default. A future backup service should be explicitly enabled by the user and support interchangeable destinations rather than requiring one cloud vendor.
+
+Potential destinations include:
+
+- Amazon S3 and S3-compatible storage such as Cloudflare R2, Backblaze B2, MinIO, or a NAS gateway
+- A user-selected local folder, external drive, or network share
+- Optional provider adapters for services such as Google Drive, Dropbox, or iCloud when reliable APIs and credentials are available
+
+A complete conversational backup needs more than `life.db`. It should include a transactionally safe SQLite snapshot, Pi JSONL session files, and the ACP-to-Pi session map. Provider credentials and model API keys should not be included by default.
+
+Backup requirements:
+
+- Encrypt archives before upload, with keys controlled by the user
+- Keep cloud backup disabled until the user opts in
+- Use versioned snapshots and configurable retention
+- Verify checksums after upload and before restore
+- Avoid copying a live SQLite file directly; use SQLite's backup API or another consistent snapshot mechanism
+- Restore into a staging location, validate it, then run required Alembic migrations
+- Record backup and restore operations in the local ledger without storing cloud secrets
+
+This backup layer is future work and is separate from the possible agent sidecar. Agents must not receive cloud credentials or direct access to backup storage.
 
 ## Database migrations
 

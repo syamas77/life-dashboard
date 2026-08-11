@@ -30,6 +30,7 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 
+import { ShiningText } from "@/components/ui/shining-text";
 import { api } from "@/lib/api";
 import type { AgentConfigOption, AgentConversation, AgentEvent, AgentLedgerEntry, AgentRun, InboxItem, Task } from "@/lib/api";
 
@@ -488,6 +489,7 @@ export default function Dashboard() {
 
   return (
     <div className={dark ? "app-shell dark" : "app-shell"}>
+      <div className="ambient-backdrop" aria-hidden="true" />
       <button
         className="mobile-menu"
         type="button"
@@ -786,7 +788,7 @@ export default function Dashboard() {
                 )}
               </div>
             </section>
-            <footer className="privacy-note"><Database size={14} weight="fill" /> Ledger entries are append-only local records in life.db.</footer>
+            <footer className="privacy-note"><Database size={14} weight="fill" /> Ledger events stay in life.db indefinitely. Encrypted, opt-in cloud backups are planned.</footer>
           </div>
         ) : area === "Agent" ? (
           <div className="content agent-view reveal">
@@ -795,49 +797,15 @@ export default function Dashboard() {
                 <div><Sparkle size={18} weight="fill" /></div>
                 <span><strong>Agent</strong><small>Pi connected through ACP</small></span>
               </div>
-              <div className="agent-controls">
-                {agentConfigLoading ? <span className="agent-config-loading">Loading Pi models</span> : agentConfig?.map((config) => (
-                  <label className="agent-select" key={config.id}>
-                    <span>{config.name}</span>
-                    <select
-                      value={agentSelections[config.id] ?? config.current_value}
-                      onChange={(event) => setAgentSelections((current) => ({ ...current, [config.id]: event.target.value }))}
-                      disabled={agentRunning}
-                    >
-                      {config.options.map((option) => <option value={option.value} key={option.value}>{option.name}</option>)}
-                    </select>
-                  </label>
-                ))}
-              </div>
+              <span className="agent-current-scope"><LockKey size={12} weight="fill" /> Inbox access only</span>
             </header>
-
-            <div className="agent-session-bar">
-              <label>
-                <span className="sr-only">Active conversation</span>
-                <select
-                  value={activeConversationId ?? ""}
-                  onChange={(event) => {
-                    const conversation = agentConversations.find((item) => item.id === Number(event.target.value));
-                    if (conversation) void openAgentConversation(conversation);
-                  }}
-                  disabled={agentRunning || agentConfigLoading}
-                >
-                  {!agentConversations.length ? <option value="">No saved conversations</option> : null}
-                  {agentConversations.map((conversation) => <option value={conversation.id} key={conversation.id}>{conversation.title}</option>)}
-                </select>
-              </label>
-              <button type="button" onClick={() => void createAgentConversation()} disabled={agentRunning}>
-                <Plus size={14} weight="bold" /> New conversation
-              </button>
-              <span><LockKey size={13} weight="fill" /> Inbox access only</span>
-            </div>
 
             <section className="agent-console">
               <div className="agent-messages" aria-live="polite">
                 {agentMessages.length ? agentMessages.map((message) => (
-                  <div className={`agent-message ${message.role}`} key={message.id}>
+                  <div className={`agent-message ${message.role}${message.role === "assistant" && !message.content && agentRunning ? " pending" : ""}`} key={message.id}>
                     <span>{message.role === "assistant" ? <Sparkle size={15} weight="fill" /> : "You"}</span>
-                    <p>{message.content || (agentRunning ? "Thinking" : "")}</p>
+                    {message.content ? <p>{message.content}</p> : agentRunning ? <ShiningText text={agentActivity ?? "Pi is thinking..."} className="text-xs" /> : <p />}
                   </div>
                 )) : (
                   <div className="agent-welcome">
@@ -852,7 +820,6 @@ export default function Dashboard() {
                   </div>
                 )}
               </div>
-              {agentActivity ? <div className="agent-activity"><span /> {agentActivity}</div> : null}
               <form className="agent-composer" onSubmit={submitAgentPrompt}>
                 <label htmlFor="agent-prompt" className="sr-only">Message the Life Dashboard agent</label>
                 <textarea
@@ -866,19 +833,45 @@ export default function Dashboard() {
                     }
                   }}
                   placeholder="Message your agent"
-                  rows={2}
+                  rows={3}
                   disabled={agentRunning}
                 />
                 <button type="submit" disabled={agentRunning || !agentInput.trim()} aria-label="Send message"><ArrowRight size={18} weight="bold" /></button>
               </form>
+              <div className="agent-bottom-controls">
+                <label className="agent-bottom-select conversation-select">
+                  <span>Conversation</span>
+                  <select
+                    value={activeConversationId ?? ""}
+                    onChange={(event) => {
+                      const conversation = agentConversations.find((item) => item.id === Number(event.target.value));
+                      if (conversation) void openAgentConversation(conversation);
+                    }}
+                    disabled={agentRunning || agentConfigLoading}
+                  >
+                    {!agentConversations.length ? <option value="">No saved conversations</option> : null}
+                    {agentConversations.map((conversation) => <option value={conversation.id} key={conversation.id}>{conversation.title}</option>)}
+                  </select>
+                </label>
+                {agentConfigLoading ? <span className="agent-config-loading">Loading Pi options</span> : agentConfig?.map((config) => (
+                  <label className="agent-bottom-select" key={config.id}>
+                    <span>{config.name}</span>
+                    <select
+                      value={agentSelections[config.id] ?? config.current_value}
+                      onChange={(event) => setAgentSelections((current) => ({ ...current, [config.id]: event.target.value }))}
+                      disabled={agentRunning}
+                    >
+                      {config.options.map((option) => <option value={option.value} key={option.value}>{option.name}</option>)}
+                    </select>
+                  </label>
+                ))}
+                <button type="button" onClick={() => void createAgentConversation()} disabled={agentRunning} aria-label="New conversation">
+                  <Plus size={15} weight="bold" />
+                </button>
+              </div>
             </section>
 
-            <section className="agent-harness-note">
-              <div className="harness-current"><span>Connected now</span><strong>Pi</strong><small>Restricted through the pi-acp adapter</small></div>
-              <ArrowRight size={17} weight="bold" />
-              <div><span>Architecture direction</span><strong>More agent harnesses</strong><small>Additional ACP-compatible agents can be added behind the same dashboard.</small></div>
-            </section>
-            <footer className="privacy-note"><ShieldCheck size={14} weight="fill" /> Context is stored locally. Only enabled tools are available to the active harness.</footer>
+            <p className="agent-future-note"><ShieldCheck size={13} weight="fill" /> Pi is connected today. The ACP boundary is ready for additional agent harnesses in the future.</p>
           </div>
         ) : (
           <div className="content area-view reveal">
