@@ -41,6 +41,19 @@ Planned controls:
 
 Remote MCP support needs additional protection against untrusted content, prompt injection, credential leakage, server identity changes, and network requests to private or unexpected destinations.
 
+### Potential direct FastAPI MCP client
+
+The current implementation uses a short-lived Node policy gateway because it provided a fast, verified path through the official TypeScript MCP client SDK. FastAPI sends bounded JSON to that gateway, and the gateway handles MCP negotiation and stdio communication with the configured server.
+
+Evaluate replacing this helper with the official Python MCP client so FastAPI can communicate with MCP servers directly:
+
+```text
+Current: FastAPI → Node MCP gateway → MCP server
+Possible: FastAPI → Python MCP client → MCP server
+```
+
+The migration should happen only if the Python path matches the current implementation for protocol-version compatibility, tool-schema handling, restricted environment inheritance, message-size limits, timeout cancellation, full child-process cleanup, process-group termination, error normalization, read-only allowlist enforcement, and test coverage. Benchmark startup latency and memory use before choosing. Policy decisions, configuration ownership, and ledger writes must remain in FastAPI regardless of which SDK transports MCP messages.
+
 ## People graph and relationship memory
 
 Expand the People area into a user-controlled personal relationship graph. The graph should represent individuals, groups, relationships, important events, commitments, shared interests, and links to source material without turning unverified model guesses into facts.
@@ -166,6 +179,7 @@ Benchmark reports should include the git revision, machine profile, dataset size
 8. Add graph-ready People records, provenance, and manual memory controls before generating relationship summaries.
 9. Add the read-only, folder-allowlisted Obsidian connector and benchmark local indexing and retrieval.
 10. Add other external sources one at a time through the permissioned connector interface.
-11. Connect the implemented read-only Apple Reminders stdio server to the dashboard MCP policy gateway and ledger, then add other local servers through explicit per-tool allowlists.
-12. Add MCP write tools only after external side effects can route through approvals.
-13. Add remote MCP servers only after authentication, network policy, and secret-isolation reviews.
+11. Benchmark the current Node MCP gateway against a direct official Python MCP client and migrate only if protocol, cancellation, cleanup, and security behavior remain equivalent or improve.
+12. Add other local servers through explicit per-tool allowlists.
+13. Add MCP write tools only after external side effects can route through approvals.
+14. Add remote MCP servers only after authentication, network policy, and secret-isolation reviews.
