@@ -764,11 +764,10 @@ export default function Dashboard() {
           </div>
         ) : area === "Agent" ? (
           <div className="content agent-view reveal">
-            <section className="agent-page-header">
-              <div>
-                <p className="date"><Sparkle size={15} weight="fill" /> Pi agent · ACP</p>
-                <h1>Ask, then stay<br />in control.</h1>
-                <p className="day-summary">The first agent can talk with you and add requested items to your inbox.</p>
+            <header className="agent-chat-header">
+              <div className="agent-chat-identity">
+                <div><Sparkle size={18} weight="fill" /></div>
+                <span><strong>Agent</strong><small>Pi connected through ACP</small></span>
               </div>
               <div className="agent-controls">
                 {agentConfigLoading ? <span className="agent-config-loading">Loading Pi models</span> : agentConfig?.map((config) => (
@@ -783,9 +782,9 @@ export default function Dashboard() {
                     </select>
                   </label>
                 ))}
-                <span className="agent-scope"><LockKey size={13} weight="fill" /> Inbox access only</span>
               </div>
-            </section>
+            </header>
+
             <div className="agent-session-bar">
               <label>
                 <span className="sr-only">Active conversation</span>
@@ -804,22 +803,24 @@ export default function Dashboard() {
               <button type="button" onClick={() => void createAgentConversation()} disabled={agentRunning}>
                 <Plus size={14} weight="bold" /> New conversation
               </button>
-              <span><Database size={13} weight="fill" /> Context saved locally</span>
+              <span><LockKey size={13} weight="fill" /> Inbox access only</span>
             </div>
+
             <section className="agent-console">
               <div className="agent-messages" aria-live="polite">
                 {agentMessages.length ? agentMessages.map((message) => (
                   <div className={`agent-message ${message.role}`} key={message.id}>
-                    <span>{message.role === "assistant" ? <Brain size={15} weight="fill" /> : "You"}</span>
+                    <span>{message.role === "assistant" ? <Sparkle size={15} weight="fill" /> : "You"}</span>
                     <p>{message.content || (agentRunning ? "Thinking" : "")}</p>
                   </div>
                 )) : (
                   <div className="agent-welcome">
-                    <div><Brain size={24} weight="duotone" /></div>
-                    <h2>What should I remember?</h2>
-                    <p>I can add a thought or reminder to your local inbox. Other tools are disabled.</p>
+                    <div><Sparkle size={25} weight="duotone" /></div>
+                    <h1>What&apos;s on your mind today?</h1>
+                    <p>Talk things through with Pi, or ask it to save something to your private local inbox.</p>
                     <div className="agent-suggestions">
                       <button type="button" onClick={() => setAgentInput("Add buy groceries to my inbox")}>Capture a reminder</button>
+                      <button type="button" onClick={() => setAgentInput("Help me think through a decision")}>Think through a decision</button>
                       <button type="button" onClick={() => setAgentInput("What can you help me with?")}>Show capabilities</button>
                     </div>
                   </div>
@@ -838,14 +839,20 @@ export default function Dashboard() {
                       event.currentTarget.form?.requestSubmit();
                     }
                   }}
-                  placeholder="Ask Pi to remember something"
+                  placeholder="Message your agent"
                   rows={2}
                   disabled={agentRunning}
                 />
                 <button type="submit" disabled={agentRunning || !agentInput.trim()} aria-label="Send message"><ArrowRight size={18} weight="bold" /></button>
               </form>
             </section>
-            <footer className="privacy-note"><ShieldCheck size={14} weight="fill" /> Pi runs through ACP with only the inbox_create tool enabled.</footer>
+
+            <section className="agent-harness-note">
+              <div className="harness-current"><span>Connected now</span><strong>Pi</strong><small>Restricted through the pi-acp adapter</small></div>
+              <ArrowRight size={17} weight="bold" />
+              <div><span>Architecture direction</span><strong>More agent harnesses</strong><small>Additional ACP-compatible agents can be added behind the same dashboard.</small></div>
+            </section>
+            <footer className="privacy-note"><ShieldCheck size={14} weight="fill" /> Context is stored locally. Only enabled tools are available to the active harness.</footer>
           </div>
         ) : (
           <div className="content area-view reveal">
