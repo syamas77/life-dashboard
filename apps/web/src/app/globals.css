@@ -305,8 +305,8 @@ h1 { margin: 0; font-size: clamp(34px, 4vw, 50px); line-height: 1; letter-spacin
 .agent-message.user p { max-width: min(78%, 560px); padding: 9px 12px; border-radius: 12px 12px 3px 12px; background: var(--panel-soft); }
 .agent-message.pending { align-items: center; min-height: 58px; }
 .agent-message.pending > span:first-child { animation: agent-pulse 1.5s ease-in-out infinite; }
-.agent-composer { width: calc(100% - 24px); max-width: 820px; display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: end; margin: 0 auto 9px; padding: 11px; border: 1px solid var(--line-strong); border-radius: 12px; background: var(--surface); box-shadow: 0 8px 28px color-mix(in srgb, var(--brand) 7%, transparent); }
-.agent-composer:focus-within { border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); }
+.agent-composer { width: calc(100% - 24px); max-width: 820px; display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: end; margin: 0 auto 9px; padding: 11px; border: 1px solid color-mix(in srgb, var(--accent) 24%, var(--line-strong)); border-radius: 12px; background: color-mix(in srgb, var(--sage) 34%, var(--surface)); box-shadow: 0 8px 28px color-mix(in srgb, var(--brand) 7%, transparent); transition: background-color .18s ease, border-color .18s ease; }
+.agent-composer:focus-within { border-color: color-mix(in srgb, var(--accent) 58%, var(--line)); background: color-mix(in srgb, var(--sage) 48%, var(--surface)); }
 .agent-composer textarea { field-sizing: content; min-height: 46px; max-height: 150px; resize: vertical; padding: 8px 9px; border: 0; outline: none; background: transparent; color: var(--ink); font-size: 12px; line-height: 1.5; }
 .agent-composer textarea::placeholder { color: var(--faint); }
 .agent-composer textarea:disabled { opacity: .6; }
