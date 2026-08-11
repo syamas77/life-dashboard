@@ -3,6 +3,7 @@ from pathlib import Path
 
 from fastapi.testclient import TestClient
 
+from app.agent_runtime import AgentRunRegistry
 from app.config import Settings
 from app.database import Base
 from app.main import create_app
@@ -56,6 +57,21 @@ def test_agent_status_reports_pinned_adapter(tmp_path: Path) -> None:
     assert response.json()["adapter"] == "pi-acp@0.0.33"
 
 
+def test_agent_run_registry_tracks_concurrent_conversations() -> None:
+    registry = AgentRunRegistry()
+    first = registry.start(conversation_id=1, conversation_title="Plan today", model="model-a")
+    second = registry.start(conversation_id=2, conversation_title="Family notes", model="model-b")
+
+    registry.update(first.id, "responding")
+
+    assert [run.conversation_id for run in registry.list()] == [1, 2]
+    assert registry.list()[0].status == "responding"
+
+    registry.finish(first.id)
+    registry.finish(second.id)
+    assert registry.list() == []
+
+
 def test_agent_configuration_returns_pi_options(tmp_path: Path, monkeypatch) -> None:  # type: ignore[no-untyped-def]
     async def fake_configuration(_settings: Settings) -> dict[str, object]:
         return {
@@ -98,6 +114,19 @@ def test_agent_prompt_streams_server_sent_events(tmp_path: Path, monkeypatch) ->
         assert thinking_level == "low"
         assert session_id is None
         yield {"type": "session", "session_id": "acp-session-1"}
+        yield {
+            "type": "tool_start",
+            "tool_call_id": "tool-1",
+            "title": "inbox_create",
+            "raw_input": {"content": "Call Dad"},
+        }
+        yield {
+            "type": "tool_update",
+            "tool_call_id": "tool-1",
+            "title": None,
+            "status": "completed",
+            "raw_output": {"itemId": 42},
+        }
         yield {"type": "text_delta", "delta": "Saved it."}
         yield {"type": "done", "stop_reason": "end_turn"}
 
@@ -115,10 +144,12 @@ def test_agent_prompt_streams_server_sent_events(tmp_path: Path, monkeypatch) ->
                 "thinking_level": "low",
             },
         )
-        messages = client.get(
-            f"/api/v1/agent/conversations/{conversation['id']}/messages"
-        ).json()
+        messages = client.get(f"/api/v1/agent/conversations/{conversation['id']}/messages").json()
         saved_conversation = client.get("/api/v1/agent/conversations").json()[0]
+        active_runs = client.get("/api/v1/agent/runs").json()
+        ledger = client.get("/api/v1/agent/ledger").json()
+        client.delete(f"/api/v1/agent/conversations/{conversation['id']}")
+        preserved_ledger = client.get("/api/v1/agent/ledger").json()
 
     assert response.status_code == 200
     assert response.headers["content-type"].startswith("text/event-stream")
@@ -129,6 +160,18 @@ def test_agent_prompt_streams_server_sent_events(tmp_path: Path, monkeypatch) ->
     assert messages[1]["content"] == "Saved it."
     assert saved_conversation["acp_session_id"] == "acp-session-1"
     assert saved_conversation["title"] == "Remember to call Dad"
+    assert active_runs == []
+    assert [entry["event_type"] for entry in reversed(ledger)] == [
+        "run_started",
+        "session_connected",
+        "tool_started",
+        "tool_completed",
+        "run_completed",
+    ]
+    assert ledger[1]["tool_name"] == "inbox_create"
+    assert ledger[1]["output_json"] == '{"itemId":42}'
+    assert all(entry["conversation_id"] is None for entry in preserved_ledger)
+    assert all(entry["conversation_title"] == "Deleted conversation" for entry in preserved_ledger)
 
 
 def test_inbox_item_can_be_processed(tmp_path: Path) -> None:

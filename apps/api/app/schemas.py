@@ -97,6 +97,35 @@ class AgentMessageRead(ApiModel):
     created_at: datetime
 
 
+class AgentLedgerEntryRead(ApiModel):
+    id: int
+    conversation_id: int | None
+    conversation_title: str
+    run_id: str
+    acp_session_id: str | None
+    event_type: str
+    status: str
+    summary: str
+    model: str | None
+    thinking_level: str | None
+    tool_call_id: str | None
+    tool_name: str | None
+    input_json: str | None
+    output_json: str | None
+    error: str | None
+    created_at: datetime
+
+
+class AgentRunRead(ApiModel):
+    id: str
+    conversation_id: int
+    conversation_title: str
+    model: str | None
+    status: str
+    started_at: datetime
+    elapsed_seconds: int
+
+
 class AgentStatusRead(ApiModel):
     available: bool
     adapter: str

@@ -9,6 +9,7 @@ import {
   CaretDown,
   Check,
   CheckCircle,
+  ClipboardText,
   Command,
   Database,
   House,
@@ -18,6 +19,7 @@ import {
   Moon,
   PaperPlaneTilt,
   Plus,
+  Robot,
   ShieldCheck,
   Sparkle,
   Sun,
@@ -29,9 +31,9 @@ import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 
 import { api } from "@/lib/api";
-import type { AgentConfigOption, AgentConversation, AgentEvent, InboxItem, Task } from "@/lib/api";
+import type { AgentConfigOption, AgentConversation, AgentEvent, AgentLedgerEntry, AgentRun, InboxItem, Task } from "@/lib/api";
 
-type Area = "Today" | "Inbox" | "People" | "Agent" | "Approvals";
+type Area = "Today" | "Inbox" | "People" | "Agent" | "World" | "Ledger" | "Approvals";
 type CaptureTarget = "inbox" | "task";
 type AgentMessage = { id: number; role: "user" | "assistant"; content: string };
 
@@ -40,6 +42,8 @@ const navigation = [
   { label: "Inbox" as Area, icon: Archive, count: null },
   { label: "People" as Area, icon: UsersThree, count: null },
   { label: "Agent" as Area, icon: Sparkle, count: null },
+  { label: "World" as Area, icon: Robot, count: null },
+  { label: "Ledger" as Area, icon: ClipboardText, count: null },
   { label: "Approvals" as Area, icon: ShieldCheck, count: 2 },
 ];
 
@@ -49,7 +53,7 @@ const schedule = [
   { time: "14:30", title: "Deep work", meta: "Protected · 2 hr", tone: "sand" },
 ];
 
-const areaCopy: Record<Exclude<Area, "Today">, { title: string; body: string; action: string }> = {
+const areaCopy: Record<Exclude<Area, "Today" | "World" | "Ledger">, { title: string; body: string; action: string }> = {
   Inbox: {
     title: "Nothing gets lost.",
     body: "Capture a thought now. Decide what it means when you have time.",
@@ -71,6 +75,84 @@ const areaCopy: Record<Exclude<Area, "Today">, { title: string; body: string; ac
     action: "Review pending",
   },
 };
+
+const agentSpeech: Record<string, string> = {
+  starting: "Opening the bridge",
+  thinking: "Reading the conversation",
+  "using tool": "Working with the inbox",
+  responding: "Sending a reply",
+};
+
+function AgentWorld({ runs }: { runs: AgentRun[] }) {
+  return (
+    <section className={runs.length ? "agent-world active" : "agent-world"} aria-live="polite">
+      <header className="world-status">
+        <div>
+          <span>Live local runtime</span>
+          <strong>{runs.length ? `${runs.length} ${runs.length === 1 ? "agent is" : "agents are"} awake` : "The workshop is quiet"}</strong>
+        </div>
+        <div className="world-process-count">
+          <strong>{runs.length * 2}</strong>
+          <span>child processes</span>
+        </div>
+      </header>
+
+      <div className="world-scene">
+        <div className="world-sun" aria-hidden="true" />
+        <div className="world-cloud cloud-one" aria-hidden="true" />
+        <div className="world-cloud cloud-two" aria-hidden="true" />
+        <div className="world-station api-station">
+          <span>API</span>
+          <strong>FastAPI gate</strong>
+        </div>
+        <div className="world-station pi-station">
+          <span>PI</span>
+          <strong>Pi workshop</strong>
+        </div>
+        <div className="world-path" aria-hidden="true" />
+
+        {runs.length ? runs.map((run, index) => (
+          <article
+            className={`world-agent world-agent-${index % 6 + 1}`}
+            style={{ animationDelay: `${index * -0.8}s` }}
+            key={run.id}
+          >
+            <div className="world-agent-speech">
+              <strong>{agentSpeech[run.status] ?? run.status}</strong>
+              <span>{run.elapsed_seconds}s</span>
+            </div>
+            <div className="world-robot-body">
+              <Robot size={31} weight="duotone" />
+            </div>
+            <div className="world-agent-name">
+              <strong>{run.conversation_title}</strong>
+              <span>{run.model?.split("/").at(-1) ?? "default model"}</span>
+            </div>
+          </article>
+        )) : (
+          <div className="world-idle-dock">
+            <div><Robot size={42} weight="duotone" /></div>
+            <strong>Agents are resting</strong>
+            <span>Start a conversation and return here to watch it work.</span>
+          </div>
+        )}
+      </div>
+
+      <footer className="world-key">
+        <span><i /> Each robot is one active conversation</span>
+        <span>FastAPI starts one pi-acp and Pi pair for every robot</span>
+      </footer>
+    </section>
+  );
+}
+
+function prettyLedgerValue(value: string): string {
+  try {
+    return JSON.stringify(JSON.parse(value), null, 2);
+  } catch {
+    return value;
+  }
+}
 
 function BrandMark() {
   return (
@@ -101,6 +183,9 @@ export default function Dashboard() {
   const [agentSelections, setAgentSelections] = useState<Record<string, string>>({});
   const [agentConversations, setAgentConversations] = useState<AgentConversation[]>([]);
   const [activeConversationId, setActiveConversationId] = useState<number | null>(null);
+  const [agentRuns, setAgentRuns] = useState<AgentRun[]>([]);
+  const [agentLedger, setAgentLedger] = useState<AgentLedgerEntry[]>([]);
+  const [agentLedgerLoading, setAgentLedgerLoading] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [dark, setDark] = useState(false);
@@ -125,6 +210,53 @@ export default function Dashboard() {
       active = false;
     };
   }, []);
+
+  useEffect(() => {
+    let active = true;
+
+    const refreshRuns = () => {
+      api.listAgentRuns()
+        .then((runs) => {
+          if (active) setAgentRuns(runs);
+        })
+        .catch(() => {
+          if (active) setAgentRuns([]);
+        });
+    };
+
+    refreshRuns();
+    const interval = window.setInterval(refreshRuns, 1000);
+    return () => {
+      active = false;
+      window.clearInterval(interval);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (area !== "Ledger") return;
+    let active = true;
+
+    const refreshLedger = () => {
+      setAgentLedgerLoading(true);
+      api.listAgentLedger()
+        .then((entries) => {
+          if (active) setAgentLedger(entries);
+        })
+        .catch(() => {
+          if (active) setAgentLedger([]);
+        })
+        .finally(() => {
+          if (active) setAgentLedgerLoading(false);
+        });
+    };
+
+    refreshLedger();
+    const interval = window.setInterval(refreshLedger, 2000);
+    return () => {
+      active = false;
+      window.clearInterval(interval);
+    };
+  }, [area]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -354,7 +486,7 @@ export default function Dashboard() {
           <p className="nav-label">Workspace</p>
           {navigation.map((item) => {
             const Icon = item.icon;
-            const itemCount = item.label === "Approvals" ? approvals.length : item.label === "Inbox" ? inboxItems.length : item.count;
+            const itemCount = item.label === "Approvals" ? approvals.length : item.label === "Inbox" ? inboxItems.length : item.label === "World" ? agentRuns.length : item.count;
             return (
               <button
                 className={area === item.label ? "nav-item active" : "nav-item"}
@@ -562,6 +694,73 @@ export default function Dashboard() {
                 )) : <div className="inbox-empty"><CheckCircle size={24} weight="duotone" /><strong>Your inbox is clear.</strong><span>New captures and agent-added items will appear here.</span></div>}
               </div>
             </section>
+          </div>
+        ) : area === "World" ? (
+          <div className="content world-view reveal">
+            <section className="world-page-header">
+              <div>
+                <p className="date"><Robot size={15} weight="duotone" /> Agent world</p>
+                <h1>See the work<br />while it happens.</h1>
+                <p className="day-summary">Every active conversation appears as a live agent in your local workshop.</p>
+              </div>
+              <button className="primary-button" type="button" onClick={() => selectArea("Agent")}>
+                Open Agent <ArrowRight size={15} weight="bold" />
+              </button>
+            </section>
+            <AgentWorld runs={agentRuns} />
+            <footer className="privacy-note"><LockKey size={14} weight="fill" /> This local view shows conversation titles and runtime status, never full prompts or responses.</footer>
+          </div>
+        ) : area === "Ledger" ? (
+          <div className="content ledger-view reveal">
+            <section className="ledger-page-header">
+              <div>
+                <p className="date"><ClipboardText size={15} weight="fill" /> Local agent ledger</p>
+                <h1>Every action<br />leaves a trail.</h1>
+                <p className="day-summary">Runs, model choices, tool calls, outcomes, and failures stay inspectable on this device.</p>
+              </div>
+              <div className="ledger-totals">
+                <div><strong>{agentLedger.length}</strong><span>recent events</span></div>
+                <div><strong>{agentLedger.filter((entry) => entry.event_type.startsWith("tool_")).length}</strong><span>tool events</span></div>
+                <div><strong>{agentLedger.filter((entry) => entry.status === "failed").length}</strong><span>failed</span></div>
+              </div>
+            </section>
+
+            <section className="ledger-panel">
+              <header>
+                <div><strong>Recent activity</strong><span>Newest first</span></div>
+                <span>{agentLedgerLoading ? "Refreshing" : "Stored in SQLite"}</span>
+              </header>
+              <div className="ledger-list">
+                {agentLedgerLoading && !agentLedger.length ? (
+                  <div className="ledger-empty">Loading the local ledger</div>
+                ) : agentLedger.length ? agentLedger.map((entry) => (
+                  <article className={`ledger-entry ${entry.status}`} key={entry.id}>
+                    <div className="ledger-entry-mark">
+                      {entry.event_type.startsWith("tool_") ? <Robot size={16} weight="duotone" /> : entry.status === "completed" ? <CheckCircle size={16} weight="fill" /> : <ClipboardText size={16} weight="duotone" />}
+                    </div>
+                    <div className="ledger-entry-copy">
+                      <div>
+                        <strong>{entry.summary}</strong>
+                        <time>{new Intl.DateTimeFormat("en", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", second: "2-digit" }).format(new Date(entry.created_at))}</time>
+                      </div>
+                      <p>{entry.conversation_title}</p>
+                      <span>{entry.event_type.replaceAll("_", " ")} / {entry.model?.split("/").at(-1) ?? "default model"}{entry.thinking_level ? ` / ${entry.thinking_level}` : ""}</span>
+                      {entry.input_json || entry.output_json || entry.error ? (
+                        <details>
+                          <summary>Inspect event data</summary>
+                          {entry.input_json ? <div><strong>Input</strong><pre>{prettyLedgerValue(entry.input_json)}</pre></div> : null}
+                          {entry.output_json ? <div><strong>Output</strong><pre>{prettyLedgerValue(entry.output_json)}</pre></div> : null}
+                          {entry.error ? <div><strong>Error</strong><pre>{entry.error}</pre></div> : null}
+                        </details>
+                      ) : null}
+                    </div>
+                  </article>
+                )) : (
+                  <div className="ledger-empty"><ClipboardText size={26} weight="duotone" /><strong>No agent activity yet</strong><span>Completed runs and tool calls will appear here.</span></div>
+                )}
+              </div>
+            </section>
+            <footer className="privacy-note"><Database size={14} weight="fill" /> Ledger entries are append-only local records in life.db.</footer>
           </div>
         ) : area === "Agent" ? (
           <div className="content agent-view reveal">

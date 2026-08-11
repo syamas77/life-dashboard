@@ -28,12 +28,14 @@ The service is available at:
 - Agent status: http://127.0.0.1:8000/api/v1/agent/status
 - Pi models and thinking options: http://127.0.0.1:8000/api/v1/agent/configuration
 - Saved conversations: http://127.0.0.1:8000/api/v1/agent/conversations
+- Active agent runs: http://127.0.0.1:8000/api/v1/agent/runs
+- Persistent agent ledger: http://127.0.0.1:8000/api/v1/agent/ledger
 
 By default, personal data is stored in `data/life.db`. This file is ignored by Git.
 
 The agent endpoint uses the official Python ACP SDK to launch the pinned `pi-acp` adapter. The restricted launcher at `.pi/bin/life-pi` enables only the project-owned `inbox_create` tool. Pi must already be installed and authenticated on the machine.
 
-Agent conversation metadata and visible messages are stored in SQLite. The ACP session ID reconnects each conversation to Pi's persisted JSONL context, allowing later requests and application restarts to resume the same session.
+Agent conversation metadata and visible messages are stored in SQLite. The ACP session ID reconnects each conversation to Pi's persisted JSONL context, allowing later requests and application restarts to resume the same session. The Agent Ledger stores run lifecycle, configuration, tool, outcome, and failure events locally for inspection.
 
 ## Checks
 

@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.agent_runtime import AgentRunRegistry
 from app.config import Settings, get_settings
 from app.database import create_database_engine, create_session_factory
 from app.routers import agent, health, inbox, tasks
@@ -12,11 +13,13 @@ from app.routers import agent, health, inbox, tasks
 def create_app(settings: Settings | None = None) -> FastAPI:
     app_settings = settings or get_settings()
     engine = create_database_engine(app_settings.database_url)
+    agent_runs = AgentRunRegistry()
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         app.state.engine = engine
         app.state.session_factory = create_session_factory(engine)
+        app.state.agent_runs = agent_runs
         yield
         engine.dispose()
 

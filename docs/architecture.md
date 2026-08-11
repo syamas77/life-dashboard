@@ -196,6 +196,22 @@ The SQLite file must live in a persistent Docker volume. Containers can then be 
 
 For local-only use, published ports should bind to `127.0.0.1`. If another trusted device needs access over the home network, authentication and transport security should be added before exposing the service.
 
+### Future agent sidecar
+
+The current API starts a temporary `pi-acp` process and restricted Pi process for each agent operation, then closes both when that operation finishes. A future deployment may move those Node.js and Pi dependencies into a long-running companion service or container.
+
+```mermaid
+flowchart LR
+    Web[Web container] -->|Private HTTP| API[FastAPI container]
+    API -->|Private authenticated agent protocol| Sidecar[Agent sidecar]
+    Sidecar --> ACP[pi-acp and Pi runtime]
+    Sidecar --> PiSessions[(Persistent Pi session volume)]
+    API --> SQLite[(Persistent SQLite volume)]
+    ACP -->|Approved application tools only| API
+```
+
+The sidecar could reduce per-prompt startup latency, isolate provider credentials and Node.js dependencies, enforce separate CPU and memory limits, and restart independently. It must remain unable to open SQLite directly. This is a future option rather than a current requirement; its private interface, authentication, concurrency, health checks, and session-volume lifecycle need deliberate design before implementation.
+
 ## ACP agent architecture
 
 ACP is the adapter boundary between Life Dashboard and an interchangeable agent. The agent does not open SQLite directly. FastAPI remains the owner of data access, permissions, auditing, and approvals.
@@ -216,6 +232,47 @@ flowchart LR
     Pi -. Future external action .-> Approval[(Approval request)]
     Approval -. User decision .-> UI
 ```
+
+### Current process lifecycle and visibility
+
+For each active prompt, FastAPI starts one `pi-acp` child process. That adapter starts one Pi child process through `life-pi`. The launcher uses `exec`, so it is replaced by Pi and does not remain as a third process.
+
+```text
+FastAPI
+└── pi-acp
+    └── Pi
+```
+
+Both agent children close when the prompt completes, times out, fails, or its stream is cancelled. The next prompt starts a new pair and reloads the saved Pi session. Two different conversations may run concurrently and use two independent process pairs. The API rejects a second concurrent run for the same conversation to prevent two processes from writing the same Pi session at once.
+
+Inspect current agent processes on macOS or Linux:
+
+```bash
+for pid in $(pgrep -f 'apps/agent/node_modules/.bin/pi-acp'); do
+  ps -p "$pid" -o pid,ppid,etime,command
+  for child in $(pgrep -P "$pid"); do
+    ps -p "$child" -o pid,ppid,etime,command
+  done
+done
+```
+
+Refresh that view once per second until pressing Control-C:
+
+```bash
+while true; do
+  clear
+  date
+  for pid in $(pgrep -f 'apps/agent/node_modules/.bin/pi-acp'); do
+    ps -p "$pid" -o pid,ppid,etime,command
+    for child in $(pgrep -P "$pid"); do
+      ps -p "$child" -o pid,ppid,etime,command
+    done
+  done
+  sleep 1
+done
+```
+
+The World screen polls `GET /api/v1/agent/runs` and represents each active application-level run as a moving agent with its current status, model, and elapsed time. This registry is intentionally ephemeral: it is held in FastAPI memory, clears on restart, and represents the current API worker rather than a persistent audit log.
 
 Example agent flow:
 
@@ -256,7 +313,7 @@ A suggested initial policy is:
 | Send email, change a calendar, purchase, or publish | Always require approval |
 | Read the SQLite file directly | Never allow |
 
-The ACP prompt stream and `inbox_create` path are implemented. The Agent view also reads Pi's ACP session configuration options, displays the available models and thinking levels, and applies the selected values with ACP `session/set_config_option` before prompting. Conversations and visible messages are stored in SQLite. Each conversation stores its ACP session ID, allowing a later process to call ACP `session/load` and reconnect to Pi's persisted context. Other agent tools, audit records, and approval-backed external actions remain future work.
+The ACP prompt stream and `inbox_create` path are implemented. The Agent view also reads Pi's ACP session configuration options, displays the available models and thinking levels, and applies the selected values with ACP `session/set_config_option` before prompting. Conversations and visible messages are stored in SQLite. Each conversation stores its ACP session ID, allowing a later process to call ACP `session/load` and reconnect to Pi's persisted context. The local Agent Ledger records run lifecycle events, selected configuration, tool inputs and outputs provided by ACP, failures, and timestamps. Additional agent tools and approval-backed external actions remain future work.
 
 ### Persistent conversation storage
 
@@ -280,6 +337,28 @@ Storage responsibilities:
 - `~/.pi/agent/sessions/` contains Pi's actual conversation context and tool results.
 
 Deleting or moving Pi's session file prevents ACP context restoration even if the dashboard still has its visible message history. A future cleanup operation should delete both records together.
+
+### Persistent agent ledger
+
+`agent_ledger_entries` is an application-owned, append-oriented audit timeline. FastAPI writes entries at run start, ACP session connection, tool start, tool completion or failure, and terminal run outcome. It intentionally does not write one entry per text chunk.
+
+The ledger can retain metadata after a conversation is deleted because its conversation foreign key uses `ON DELETE SET NULL`. Tool inputs and outputs are bounded before storage and remain local in SQLite. The current ledger is useful for inspection, but it is not tamper-proof compliance storage because a user with direct file access can modify SQLite.
+
+```mermaid
+flowchart LR
+    Prompt[Agent prompt] --> Started[run_started]
+    Started --> Session[session_connected]
+    Session --> ToolStart[tool_started]
+    ToolStart --> ToolEnd[tool_completed or tool_failed]
+    Session --> Outcome[run_completed, failed, timed out, or interrupted]
+    ToolEnd --> Outcome
+    Started --> Ledger[(agent_ledger_entries)]
+    Session --> Ledger
+    ToolStart --> Ledger
+    ToolEnd --> Ledger
+    Outcome --> Ledger
+    Ledger --> View[Dashboard Ledger view]
+```
 
 ## Database migrations
 
@@ -320,7 +399,13 @@ It creates the initial `tasks` and `inbox_items` tables. The next migration is:
 apps/api/migrations/versions/53e64731bb36_add_persistent_agent_conversations.py
 ```
 
-It adds `agent_conversations` and `agent_messages` for resumable dashboard conversations.
+It adds `agent_conversations` and `agent_messages` for resumable dashboard conversations. The ledger migration is:
+
+```text
+apps/api/migrations/versions/50d8f5c89bed_add_persistent_agent_ledger.py
+```
+
+It adds the persistent `agent_ledger_entries` audit timeline.
 
 Each migration contains:
 

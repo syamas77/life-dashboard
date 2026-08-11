@@ -41,6 +41,11 @@ class AgentConversation(TimestampMixin, Base):
         cascade="all, delete-orphan",
         order_by="AgentMessage.created_at",
     )
+    ledger_entries: Mapped[list["AgentLedgerEntry"]] = relationship(
+        back_populates="conversation",
+        passive_deletes=True,
+        order_by="AgentLedgerEntry.created_at",
+    )
 
 
 class AgentMessage(Base):
@@ -54,6 +59,33 @@ class AgentMessage(Base):
     content: Mapped[str] = mapped_column(Text())
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
     conversation: Mapped[AgentConversation] = relationship(back_populates="messages")
+
+
+class AgentLedgerEntry(Base):
+    __tablename__ = "agent_ledger_entries"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    conversation_id: Mapped[int | None] = mapped_column(
+        ForeignKey("agent_conversations.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    run_id: Mapped[str] = mapped_column(String(36), index=True)
+    acp_session_id: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    event_type: Mapped[str] = mapped_column(String(40))
+    status: Mapped[str] = mapped_column(String(20))
+    summary: Mapped[str] = mapped_column(String(300))
+    model: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    thinking_level: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    tool_call_id: Mapped[str | None] = mapped_column(String(200), nullable=True, index=True)
+    tool_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    input_json: Mapped[str | None] = mapped_column(Text(), nullable=True)
+    output_json: Mapped[str | None] = mapped_column(Text(), nullable=True)
+    error: Mapped[str | None] = mapped_column(Text(), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    conversation: Mapped[AgentConversation | None] = relationship(back_populates="ledger_entries")
+
+    @property
+    def conversation_title(self) -> str:
+        return self.conversation.title if self.conversation else "Deleted conversation"
 
 
 class InboxItem(TimestampMixin, Base):

@@ -45,6 +45,35 @@ export type AgentConversation = {
   updated_at: string;
 };
 
+export type AgentLedgerEntry = {
+  id: number;
+  conversation_id: number | null;
+  conversation_title: string;
+  run_id: string;
+  acp_session_id: string | null;
+  event_type: string;
+  status: string;
+  summary: string;
+  model: string | null;
+  thinking_level: string | null;
+  tool_call_id: string | null;
+  tool_name: string | null;
+  input_json: string | null;
+  output_json: string | null;
+  error: string | null;
+  created_at: string;
+};
+
+export type AgentRun = {
+  id: string;
+  conversation_id: number;
+  conversation_title: string;
+  model: string | null;
+  status: string;
+  started_at: string;
+  elapsed_seconds: number;
+};
+
 export type AgentMessageRecord = {
   id: number;
   conversation_id: number;
@@ -127,6 +156,8 @@ export const api = {
   createInboxItem: (content: string) => request<InboxItem>("/inbox", { method: "POST", body: { content } }),
   setInboxProcessed: (id: number, processed: boolean) => request<InboxItem>(`/inbox/${id}`, { method: "PATCH", body: { processed } }),
   getAgentConfiguration: () => request<AgentConfiguration>("/agent/configuration"),
+  listAgentRuns: () => request<AgentRun[]>("/agent/runs"),
+  listAgentLedger: () => request<AgentLedgerEntry[]>("/agent/ledger"),
   listAgentConversations: () => request<AgentConversation[]>("/agent/conversations"),
   createAgentConversation: () => request<AgentConversation>("/agent/conversations", { method: "POST", body: {} }),
   listAgentMessages: (conversationId: number) => request<AgentMessageRecord[]>(`/agent/conversations/${conversationId}/messages`),

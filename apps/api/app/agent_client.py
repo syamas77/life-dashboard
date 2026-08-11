@@ -1,5 +1,6 @@
 import asyncio
 import contextlib
+import json
 import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -49,6 +50,15 @@ from app.config import Settings
 AgentStreamEvent = dict[str, Any]
 
 
+def _bounded_json_value(value: Any, limit: int = 8000) -> Any:
+    if value is None:
+        return None
+    serialized = json.dumps(value, default=str, separators=(",", ":"))
+    if len(serialized) <= limit:
+        return json.loads(serialized)
+    return {"truncated": True, "preview": serialized[:limit]}
+
+
 class LifeDashboardAcpClient(Client):
     """Minimal, deny-by-default ACP client used by the local API."""
 
@@ -96,6 +106,9 @@ class LifeDashboardAcpClient(Client):
                     "type": "tool_start",
                     "tool_call_id": update.tool_call_id,
                     "title": update.title,
+                    "kind": update.kind,
+                    "status": update.status,
+                    "raw_input": _bounded_json_value(update.raw_input),
                 }
             )
         elif isinstance(update, ToolCallProgress):
@@ -105,6 +118,9 @@ class LifeDashboardAcpClient(Client):
                     "tool_call_id": update.tool_call_id,
                     "status": update.status,
                     "title": update.title,
+                    "kind": update.kind,
+                    "raw_input": _bounded_json_value(update.raw_input),
+                    "raw_output": _bounded_json_value(update.raw_output),
                 }
             )
 
