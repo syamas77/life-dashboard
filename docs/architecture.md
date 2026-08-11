@@ -221,6 +221,8 @@ The detailed roadmap lives in [`future-additions.md`](future-additions.md). Thre
 3. Repeatable **benchmarks** covering API and SQLite performance, agent startup and streaming, concurrency, indexing and retrieval, sidecar comparisons, tool safety and recovery, resource use, and frontend responsiveness.
 4. A user-controlled **People Graph** with separate individual, relationship, group, and owner memory scopes. Every generated memory needs provenance, correction, selective forgetting, and confirmation for sensitive inferences.
 5. A read-only-first **Obsidian connector** and a permissioned connector interface for selected external knowledge sources. Imported content remains untrusted data and cannot silently become agent instructions.
+6. Optional **voice interaction** beginning with visible push-to-talk, reviewable transcripts, local speech processing where practical, and separate opt-in for cloud speech providers. Raw audio is discarded by default.
+7. A **portable encrypted export and backup center** with verified restore, manual archive download/upload, and later scheduled Amazon S3, S3-compatible, local-drive, and supported cloud destinations. See [Future opt-in backup and restore](#future-opt-in-backup-and-restore).
 
 ```mermaid
 flowchart LR
@@ -242,7 +244,7 @@ flowchart LR
     Gateway --> Ledger
 ```
 
-Autonomous jobs, MCP tools, and source connectors must remain behind FastAPI-owned policy, approvals, and auditing. No job, harness, sidecar, MCP server, or source adapter may open SQLite directly. Relationship context must remain scoped so one person's private memory is not disclosed in another context by default. Imported notes, messages, pages, and MCP resources are untrusted content rather than executable instructions. Benchmark fixtures must use synthetic data and must not upload personal conversation contents.
+Autonomous jobs, MCP tools, source connectors, voice providers, and backup destinations must remain behind FastAPI-owned policy, approvals, and auditing. No job, harness, sidecar, MCP server, source adapter, or cloud destination may open SQLite directly. Relationship context must remain scoped so one person's private memory is not disclosed in another context by default. Imported notes, messages, pages, and MCP resources are untrusted content rather than executable instructions. Raw voice audio is ephemeral by default, and backup credentials never enter agent context. Benchmark fixtures must use synthetic data and must not upload personal conversation contents.
 
 ## ACP agent architecture
 

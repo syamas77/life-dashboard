@@ -91,6 +91,49 @@ Every connector must provide:
 
 Retrieval should select the minimum relevant context and disclose which sources were used. Connecting a source must not automatically expose all of its content to every conversation, autonomous job, harness, or MCP server.
 
+## Voice interaction
+
+Add voice as an optional input and output mode for conversations and supervised agent workflows. Voice must be explicit, visible, and private by default rather than an always-listening assistant.
+
+Planned capabilities:
+
+- Start with push-to-talk recording in the Agent view, with a persistent recording indicator and an immediate stop control
+- Show a reviewable transcript before sending it to an agent when the user enables transcript confirmation
+- Support interruption, cancel, retry, keyboard control, and accessible text equivalents for every voice action
+- Prefer local speech-to-text and text-to-speech engines when they meet the device's quality and performance needs
+- Make cloud transcription or speech generation a separate opt-in provider with clear disclosure of what audio or text leaves the device
+- Discard raw audio after transcription by default; retain recordings only when the user explicitly enables it
+- Store transcript provenance, timestamps, provider/model identity, and correction history
+- Allow per-conversation voice selection, playback speed, automatic playback, and mute controls
+- Keep microphone permission scoped to active recording and never start background listening on application launch
+- Require a visible, separately enabled mode before voice can interact with an autonomous job
+
+Voice benchmarks should measure transcription accuracy on representative synthetic samples, time to partial and final transcript, first-audio latency, interruption behavior, CPU and memory use, offline availability, and failure recovery. Test microphone-denied and network-offline states as first-class flows.
+
+## Portable export, upload, and cloud backup
+
+Add a user-controlled backup center for exporting, uploading, verifying, and restoring dashboard data. Local files remain the source of truth; backup destinations receive encrypted, versioned archives rather than access to the live database.
+
+Planned capabilities:
+
+- Create a transactionally consistent SQLite snapshot through SQLite's backup API
+- Package the database, Pi JSONL sessions, ACP session map, attachments, and a versioned manifest with checksums
+- Let the user download an encrypted archive or save it to a selected local folder, external drive, or network share
+- Support Amazon S3 and configurable S3-compatible destinations such as Cloudflare R2, Backblaze B2, MinIO, or a NAS gateway
+- Allow custom endpoint, region, bucket, and path settings without assuming Amazon-hosted storage
+- Add optional provider adapters for supported cloud drives after the portable archive format is stable
+- Encrypt archives before upload with a user-controlled key or recovery secret
+- Store cloud credentials in operating-system secret storage, never in conversation data, agent prompts, ledger payloads, or archives
+- Support manual backups first, then optional schedules, retention limits, version listing, and pruning
+- Show upload progress, archive size, checksum verification, last successful backup, and actionable errors
+- Provide a restore preview, compatibility check, dry run, and automatic pre-restore local snapshot
+- Restore into a staging location, validate checksums and schema, then apply required migrations before activation
+- Regularly test restore paths; a successful upload alone does not prove that a backup is usable
+
+Users should be able to exclude attachments, agent sessions, connector indexes, or other data classes from an archive. External source content such as an Obsidian vault should not be copied automatically when the original source remains available; the manifest can preserve connector configuration and rebuildable index metadata instead.
+
+Agents, MCP servers, and source connectors must not receive backup credentials or direct bucket access. A future narrowly scoped backup service owns upload and restore operations and records only bounded status metadata in the ledger.
+
 ## Benchmarks
 
 Create a repeatable benchmark suite before introducing a long-running sidecar, autonomous jobs, additional harnesses, or MCP servers. Benchmarks should use synthetic fixtures and test credentials rather than personal conversations.
@@ -112,12 +155,15 @@ Benchmark reports should include the git revision, machine profile, dataset size
 ## Suggested delivery order
 
 1. Add benchmark fixtures and capture a baseline.
-2. Implement the isolated agent sidecar and compare it with the current per-prompt lifecycle.
-3. Add job persistence, budgets, checkpoints, and supervision APIs.
-4. Ship the read-only Autonomous Agents tab before enabling job creation.
-5. Add graph-ready People records, provenance, and manual memory controls before generating relationship summaries.
-6. Add the read-only, folder-allowlisted Obsidian connector and benchmark local indexing and retrieval.
-7. Add other external sources one at a time through the permissioned connector interface.
-8. Add local stdio MCP servers with explicit per-tool allowlists.
-9. Connect external MCP side effects to approvals.
-10. Add remote MCP servers only after authentication, network policy, and secret-isolation reviews.
+2. Define the portable encrypted archive format and ship manual local export plus verified restore.
+3. Add manual S3-compatible upload, then schedules and retention only after restore testing.
+4. Add push-to-talk with local transcription evaluation before considering cloud voice providers or automatic playback.
+5. Implement the isolated agent sidecar and compare it with the current per-prompt lifecycle.
+6. Add job persistence, budgets, checkpoints, and supervision APIs.
+7. Ship the read-only Autonomous Agents tab before enabling job creation.
+8. Add graph-ready People records, provenance, and manual memory controls before generating relationship summaries.
+9. Add the read-only, folder-allowlisted Obsidian connector and benchmark local indexing and retrieval.
+10. Add other external sources one at a time through the permissioned connector interface.
+11. Add local stdio MCP servers with explicit per-tool allowlists.
+12. Connect external MCP side effects to approvals.
+13. Add remote MCP servers only after authentication, network policy, and secret-isolation reviews.

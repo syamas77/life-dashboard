@@ -61,8 +61,10 @@ SQLite is embedded and stores data directly in `apps/api/data/life.db`. It does 
 - Permission-gated MCP servers with per-tool allowlists, secret isolation, bounded execution, and approval routing for external side effects
 - A People Graph with individual, relationship, and group memory scopes, source provenance, correction, and selective forgetting
 - A read-only-first Obsidian “second brain” connector plus permissioned adapters for selected external knowledge sources
-- Repeatable backend, agent-runtime, SQLite, indexing, retrieval, recovery, and frontend benchmarks using synthetic data
-- An isolated agent sidecar and encrypted opt-in backups after benchmark and security validation
+- Private push-to-talk voice with local speech processing where practical and explicit opt-in for cloud voice providers
+- Portable encrypted export and restore, followed by opt-in Amazon S3, S3-compatible, local-drive, and supported cloud backups
+- Repeatable backend, agent-runtime, SQLite, indexing, retrieval, voice, backup/restore, recovery, and frontend benchmarks using synthetic data
+- An isolated agent sidecar after benchmark and security validation
 
 These capabilities remain disabled until implemented. See the [future additions roadmap](docs/future-additions.md) for constraints and delivery order.
 
