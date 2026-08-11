@@ -940,6 +940,7 @@ export default function Dashboard() {
                     <header>
                       <div className="mcp-server-icon"><PlugsConnected size={20} weight="duotone" /></div>
                       <div><strong>{server.name}</strong><span>{server.built_in ? "Bundled with Life Dashboard" : "Custom local server"}</span></div>
+                      <span className={`mcp-health ${server.last_error ? "failed" : server.last_tested_at ? "verified" : "untested"}`} title="Health reflects the most recent connection test; stdio servers are not kept running."><i />{server.last_error ? "Failed" : server.last_tested_at ? "Verified" : "Not tested"}</span>
                       <label className="mcp-toggle"><input type="checkbox" checked={server.enabled} onChange={(event) => void setMcpServerEnabled(server, event.target.checked)} /><span>{server.enabled ? "Enabled" : "Disabled"}</span></label>
                     </header>
                     <code>{[server.command, ...server.args].join(" ")}</code>
