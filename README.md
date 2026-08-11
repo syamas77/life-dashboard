@@ -26,6 +26,14 @@ cd apps/agent
 npm install
 ```
 
+Install and verify the read-only Apple Reminders MCP server on macOS:
+
+```bash
+cd apps/mcp-apple-reminders
+npm install
+npm run check
+```
+
 Start the local API:
 
 ```bash
@@ -54,6 +62,11 @@ SQLite is embedded and stores data directly in `apps/api/data/life.db`. It does 
 - World
 - Ledger
 - Approval center
+
+## Implemented integrations
+
+- Pi through ACP for persistent local agent conversations
+- A standalone, read-only Apple Reminders MCP server with list and search tools; the dashboard policy gateway is the next integration step
 
 ## Future additions
 

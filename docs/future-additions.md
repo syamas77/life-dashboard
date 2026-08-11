@@ -24,6 +24,8 @@ Autonomous jobs must call approved FastAPI application tools. They must not read
 
 Add Model Context Protocol support as another tool adapter boundary. MCP does not replace ACP: ACP connects the dashboard to agent harnesses, while MCP can connect an approved harness or agent sidecar to narrowly scoped external tools and context providers.
 
+The first standalone server now exists at `apps/mcp-apple-reminders`. It uses the official MCP TypeScript SDK and exposes only read-only Apple Reminders list and query tools over local stdio. Real macOS permission, list discovery, reminder reads, MCP tool discovery, and MCP tool invocation have been verified. It is not yet exposed to the restricted Pi harness; that requires the policy gateway, bounded ledger recording, and approval architecture described below. Write, complete, move, and delete tools remain intentionally absent.
+
 Planned controls:
 
 - Keep every MCP server disabled until the user explicitly configures and enables it
@@ -164,6 +166,6 @@ Benchmark reports should include the git revision, machine profile, dataset size
 8. Add graph-ready People records, provenance, and manual memory controls before generating relationship summaries.
 9. Add the read-only, folder-allowlisted Obsidian connector and benchmark local indexing and retrieval.
 10. Add other external sources one at a time through the permissioned connector interface.
-11. Add local stdio MCP servers with explicit per-tool allowlists.
-12. Connect external MCP side effects to approvals.
+11. Connect the implemented read-only Apple Reminders stdio server to the dashboard MCP policy gateway and ledger, then add other local servers through explicit per-tool allowlists.
+12. Add MCP write tools only after external side effects can route through approvals.
 13. Add remote MCP servers only after authentication, network policy, and secret-isolation reviews.

@@ -173,6 +173,22 @@ flowchart TB
 
 Tasks and inbox captures now use the API client and persist in SQLite. The schedule and approval cards still use sample in-memory data until their backend models are implemented.
 
+## Read-only Apple Reminders MCP server
+
+`apps/mcp-apple-reminders` is the first implemented MCP server. It is a project-owned Node.js process using the official MCP TypeScript SDK and local stdio transport. It exposes only `apple_reminders_list_lists` and `apple_reminders_list`; both are annotated read-only and non-destructive. Reminder notes are excluded by default, inputs and results are bounded, and JXA is executed through `execFile` without a shell or user-input interpolation.
+
+```mermaid
+flowchart LR
+    Inspector[Official MCP client or Inspector] <-->|MCP JSON-RPC over stdio| Server[Life Apple Reminders MCP server]
+    Server -->|Direct process invocation; no shell| OSA[/usr/bin/osascript]
+    OSA -->|JXA read operations| Reminders[macOS Reminders]
+    MacOS[macOS privacy permission] --> OSA
+    Server -. No access .-> DB[(life.db)]
+    Server -. No network listener .-> Network[Network]
+```
+
+The real macOS list and reminder read paths and an end-to-end MCP stdio client call have been verified. This server is not yet connected to the restricted Pi harness or FastAPI. The next step is a dashboard-owned MCP client and policy gateway that records bounded tool events in the ledger. Create, update, complete, move, and delete operations remain absent until they can route through explicit approvals.
+
 ## Future Docker deployment
 
 ```mermaid
