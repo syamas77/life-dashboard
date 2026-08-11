@@ -805,7 +805,7 @@ export default function Dashboard() {
                 {agentMessages.length ? agentMessages.map((message) => (
                   <div className={`agent-message ${message.role}${message.role === "assistant" && !message.content && agentRunning ? " pending" : ""}`} key={message.id}>
                     <span>{message.role === "assistant" ? <Sparkle size={15} weight="fill" /> : "You"}</span>
-                    {message.content ? <p>{message.content}</p> : agentRunning ? <ShiningText text={agentActivity ?? "Pi is thinking..."} className="text-xs" /> : <p />}
+                    {message.content ? <p>{message.content}</p> : agentRunning ? <ShiningText text={agentActivity ?? "Pi is thinking..."} className="agent-thinking text-xs" /> : <p />}
                   </div>
                 )) : (
                   <div className="agent-welcome">
