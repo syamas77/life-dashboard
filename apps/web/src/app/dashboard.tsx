@@ -28,7 +28,7 @@ import {
   UsersThree,
   X,
 } from "@phosphor-icons/react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent } from "react";
 
 import { ShiningText } from "@/components/ui/shining-text";
@@ -219,6 +219,7 @@ export default function Dashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [dark, setDark] = useState(false);
   const [approvals, setApprovals] = useState(["Send follow-up to Maya", "Create calendar hold"]);
+  const agentMessagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let active = true;
@@ -327,6 +328,15 @@ export default function Dashboard() {
       });
     return () => { active = false; };
   }, [area]);
+
+  useEffect(() => {
+    if (area !== "Agent") return;
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    agentMessagesEndRef.current?.scrollIntoView({
+      behavior: reduceMotion ? "auto" : "smooth",
+      block: "end",
+    });
+  }, [area, agentMessages, agentActivity]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -1015,6 +1025,7 @@ export default function Dashboard() {
                     </div>
                   </div>
                 )}
+                <div ref={agentMessagesEndRef} className="agent-messages-end" aria-hidden="true" />
               </div>
               <form className="agent-composer" onSubmit={submitAgentPrompt}>
                 <label htmlFor="agent-prompt" className="sr-only">Message the Life Dashboard agent</label>
