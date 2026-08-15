@@ -69,11 +69,13 @@ SQLite is embedded and stores data directly in `apps/api/data/life.db`. It does 
 ## Implemented integrations
 
 - Pi through ACP for persistent local agent conversations
-- A read-only Apple Reminders MCP server connected through a FastAPI policy gateway, dashboard testing UI, per-tool allowlists, Pi bridge, and ledger events
+- Apple Reminders MCP with read tools plus approval-gated create, update, complete, move, and delete tools
+- GitHub’s official local MCP server with read and approval-gated repository write tools
+- A generic local MCP policy gateway, dashboard server registry, per-tool allowlists, Agent bridge, approval cards, and Ledger events
 
 ## MCP request flow
 
-The Agent does not launch external MCP servers directly. It calls the generic `mcp` tool exposed by `.pi/extensions/life-dashboard.ts`. That extension sends the request to FastAPI, which checks that the server is enabled and the requested tool is allowlisted. FastAPI then starts the short-lived Node policy gateway, which launches the configured local MCP executable over stdio, verifies the requested tool is read-only and non-destructive, calls it, and returns bounded JSON. FastAPI records the test or call in the Agent Ledger before returning the result to the Agent.
+The Agent does not launch external MCP servers directly. It calls the generic `mcp` tool exposed by `.pi/extensions/life-dashboard.ts`. That extension sends the request to FastAPI, which checks that the server is enabled and the requested tool is allowlisted. Read-only tools run immediately. Write tools pause the original Agent request until the user approves or rejects the exact request in the Agent panel. FastAPI then starts the short-lived Node policy gateway, which launches the configured local MCP executable over stdio, calls it, and returns bounded JSON. FastAPI records the test, call, and approval decision in the Agent Ledger before returning the result to the Agent.
 
 ```text
 Agent → life-dashboard extension → FastAPI policy API
@@ -86,7 +88,7 @@ The gateway is generic; it does not inherently call Apple Reminders. It launches
 ## Future additions
 
 - A dedicated Autonomous Agents tab with schedules, budgets, checkpoints, approvals, pause/stop controls, and complete ledger visibility
-- Permission-gated MCP servers with per-tool allowlists, secret isolation, bounded execution, and approval routing for external side effects
+- Persistent approval requests and recovery for interrupted MCP write actions
 - A People Graph with individual, relationship, and group memory scopes, source provenance, correction, and selective forgetting
 - A read-only-first Obsidian “second brain” connector plus permissioned adapters for selected external knowledge sources
 - Private push-to-talk voice with local speech processing where practical and explicit opt-in for cloud voice providers
