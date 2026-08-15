@@ -12,6 +12,7 @@ import {
   ClipboardText,
   Command,
   Database,
+  DotsThreeVertical,
   House,
   List,
   LockKey,
@@ -33,7 +34,7 @@ import type { FormEvent } from "react";
 
 import { ShiningText } from "@/components/ui/shining-text";
 import { api } from "@/lib/api";
-import type { AgentConfigOption, AgentConversation, AgentEvent, AgentLedgerEntry, AgentRun, InboxItem, McpServer, McpTool, Task } from "@/lib/api";
+import type { AgentConfigOption, AgentConversation, AgentEvent, AgentLedgerEntry, AgentRun, InboxItem, McpApproval, McpServer, McpTool, Task } from "@/lib/api";
 
 type Area = "Today" | "Inbox" | "People" | "Agent" | "World" | "Ledger" | "MCP" | "Approvals";
 type CaptureTarget = "inbox" | "task";
@@ -74,7 +75,7 @@ const areaCopy: Record<Exclude<Area, "Today" | "World" | "Ledger">, { title: str
   },
   MCP: {
     title: "Connect trusted tools.",
-    body: "Add local MCP servers, inspect their tools, and allow only the read-only capabilities you trust.",
+    body: "Add local MCP servers, inspect their tools, and approve read-only or approval-gated capabilities you trust.",
     action: "Add MCP server",
   },
   Approvals: {
@@ -215,11 +216,13 @@ export default function Dashboard() {
   const [mcpLoading, setMcpLoading] = useState(true);
   const [mcpTestingId, setMcpTestingId] = useState<string | null>(null);
   const [mcpTestResult, setMcpTestResult] = useState<string | null>(null);
+  const [mcpApprovals, setMcpApprovals] = useState<McpApproval[]>([]);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [dark, setDark] = useState(false);
   const [approvals, setApprovals] = useState(["Send follow-up to Maya", "Create calendar hold"]);
   const agentMessagesEndRef = useRef<HTMLDivElement>(null);
+  const conversationMenuRef = useRef<HTMLDetailsElement>(null);
 
   useEffect(() => {
     let active = true;
@@ -331,12 +334,38 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (area !== "Agent") return;
+    let active = true;
+    const refreshApprovals = () => {
+      api.listMcpApprovals().then((items) => {
+        if (active) setMcpApprovals(items);
+      }).catch(() => undefined);
+    };
+    refreshApprovals();
+    const interval = window.setInterval(refreshApprovals, 1000);
+    return () => {
+      active = false;
+      window.clearInterval(interval);
+    };
+  }, [area]);
+
+  useEffect(() => {
+    if (area !== "Agent") return;
     const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     agentMessagesEndRef.current?.scrollIntoView({
       behavior: reduceMotion ? "auto" : "smooth",
       block: "end",
     });
   }, [area, agentMessages, agentActivity]);
+
+  useEffect(() => {
+    const closeConversationMenu = (event: PointerEvent) => {
+      if (conversationMenuRef.current && !conversationMenuRef.current.contains(event.target as Node)) {
+        conversationMenuRef.current.open = false;
+      }
+    };
+    document.addEventListener("pointerdown", closeConversationMenu);
+    return () => document.removeEventListener("pointerdown", closeConversationMenu);
+  }, []);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -400,6 +429,21 @@ export default function Dashboard() {
       .finally(() => setAgentConfigLoading(false));
   }
 
+  async function deleteCurrentConversation() {
+    if (!activeConversationId || agentRunning) return;
+    if (!window.confirm("Delete this conversation and its saved messages?")) return;
+    try {
+      await api.deleteAgentConversation(activeConversationId);
+      const remaining = agentConversations.filter((conversation) => conversation.id !== activeConversationId);
+      setAgentConversations(remaining);
+      setActiveConversationId(remaining[0]?.id ?? null);
+      setAgentMessages([]);
+      if (remaining[0]) await openAgentConversation(remaining[0]);
+    } catch (error) {
+      setApiError(error instanceof Error ? error.message : "The conversation could not be deleted.");
+    }
+  }
+
   async function createAgentConversation() {
     if (agentRunning) return;
     try {
@@ -457,6 +501,25 @@ export default function Dashboard() {
       setMcpServers((servers) => servers.filter((item) => item.id !== server.id));
     } catch (error) {
       setApiError(error instanceof Error ? error.message : "The MCP server could not be removed.");
+    }
+  }
+
+  async function approveMcpTool(approval: McpApproval) {
+    try {
+      const result = await api.approveMcp(approval.id);
+      setMcpApprovals((items) => items.filter((item) => item.id !== approval.id));
+      setAgentActivity(result.error ? "MCP action failed" : "MCP action approved");
+    } catch (error) {
+      setApiError(error instanceof Error ? error.message : "The MCP action could not be approved.");
+    }
+  }
+
+  async function rejectMcpTool(approval: McpApproval) {
+    try {
+      await api.rejectMcp(approval.id);
+      setMcpApprovals((items) => items.filter((item) => item.id !== approval.id));
+    } catch (error) {
+      setApiError(error instanceof Error ? error.message : "The MCP action could not be rejected.");
     }
   }
 
@@ -961,20 +1024,23 @@ export default function Dashboard() {
                     </div>
                     {server.last_error ? <p className="mcp-server-error">{server.last_error}</p> : null}
                     {tools.length ? (
-                      <div className="mcp-tool-list">
-                        {tools.map((tool) => {
-                          const safe = tool.read_only && !tool.destructive;
-                          const allowed = server.allowed_tools.includes(tool.name);
-                          return (
-                            <div className="mcp-tool-row" key={tool.name}>
-                              <div><strong>{tool.title ?? tool.name}</strong><span>{tool.description ?? tool.name}</span></div>
-                              <span className={safe ? "mcp-readonly" : "mcp-unsafe"}>{safe ? "Read only" : "Blocked"}</span>
-                              <label><input type="checkbox" checked={allowed} disabled={!safe} onChange={(event) => void setMcpToolAllowed(server, tool.name, event.target.checked)} /> Allow</label>
-                              <button type="button" disabled={!server.enabled || !allowed || !safe || mcpTestingId === server.id} onClick={() => void runMcpToolTest(server, tool.name)}>Run</button>
-                            </div>
-                          );
-                        })}
-                      </div>
+                      <details className="mcp-tools-dropdown">
+                        <summary><span>Tools</span><strong>{tools.length} discovered · {server.allowed_tools.length} allowed</strong></summary>
+                        <div className="mcp-tool-list">
+                          {tools.map((tool) => {
+                            const safe = tool.read_only && !tool.destructive;
+                            const allowed = server.allowed_tools.includes(tool.name);
+                            return (
+                              <div className="mcp-tool-row" key={tool.name}>
+                                <div><strong>{tool.title ?? tool.name}</strong><span>{tool.description ?? tool.name}</span></div>
+                                <span className={safe ? "mcp-readonly" : "mcp-unsafe"}>{safe ? "Read only" : "Write · approval"}</span>
+                                <label><input type="checkbox" checked={allowed} onChange={(event) => void setMcpToolAllowed(server, tool.name, event.target.checked)} /> Allow</label>
+                                <button type="button" disabled={!server.enabled || !allowed || mcpTestingId === server.id} onClick={() => void runMcpToolTest(server, tool.name)}>{safe ? "Run" : "Request"}</button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </details>
                     ) : <p className="mcp-no-tools">Test the connection to inspect this server&apos;s tools.</p>}
                   </article>
                 );
@@ -994,7 +1060,7 @@ export default function Dashboard() {
                 <button type="submit" disabled={mcpLoading}>Add disabled server</button>
               </form>
             </details>
-            <footer className="privacy-note"><ShieldCheck size={14} weight="fill" /> Only enabled and explicitly allowed read-only tools can run. Tests and calls are recorded in the Ledger.</footer>
+            <footer className="privacy-note"><ShieldCheck size={14} weight="fill" /> Read-only tools run when allowed. Write tools require approval. Tests and calls are recorded in the Ledger.</footer>
           </div>
         ) : area === "Agent" ? (
           <div className="content agent-view reveal">
@@ -1003,7 +1069,7 @@ export default function Dashboard() {
                 <div><Sparkle size={18} weight="fill" /></div>
                 <span><strong>Agent</strong><small>Pi connected through ACP</small></span>
               </div>
-              <span className="agent-current-scope"><LockKey size={12} weight="fill" /> Inbox access only</span>
+              <span className="agent-current-scope"><LockKey size={12} weight="fill" /> Read-only MCP · writes need approval</span>
             </header>
 
             <section className="agent-console">
@@ -1025,6 +1091,18 @@ export default function Dashboard() {
                     </div>
                   </div>
                 )}
+                {mcpApprovals.map((approval) => (
+                  <div className="agent-approval-card" key={approval.id}>
+                    <div>
+                      <strong>Approval needed: {approval.server_name} / {approval.tool_name}</strong>
+                      <p>{JSON.stringify(approval.arguments, null, 2)}</p>
+                    </div>
+                    <div className="agent-approval-actions">
+                      <button type="button" onClick={() => void approveMcpTool(approval)}>Approve and run</button>
+                      <button type="button" onClick={() => void rejectMcpTool(approval)}>Reject</button>
+                    </div>
+                  </div>
+                ))}
                 <div ref={agentMessagesEndRef} className="agent-messages-end" aria-hidden="true" />
               </div>
               <form className="agent-composer" onSubmit={submitAgentPrompt}>
@@ -1072,9 +1150,17 @@ export default function Dashboard() {
                     </select>
                   </label>
                 ))}
-                <button type="button" onClick={() => void createAgentConversation()} disabled={agentRunning} aria-label="New conversation">
-                  <Plus size={15} weight="bold" />
-                </button>
+                <details className="conversation-menu" ref={conversationMenuRef}>
+                  <summary aria-label="Conversation actions"><DotsThreeVertical size={18} weight="bold" /></summary>
+                  <div className="conversation-menu-popover">
+                    <button type="button" onClick={() => void createAgentConversation()} disabled={agentRunning}>
+                      <Plus size={15} weight="bold" /> New conversation
+                    </button>
+                    <button type="button" onClick={() => void deleteCurrentConversation()} disabled={agentRunning || !activeConversationId}>
+                      <X size={15} weight="bold" /> Delete conversation
+                    </button>
+                  </div>
+                </details>
               </div>
             </section>
 

@@ -544,6 +544,19 @@ h1 { margin: 0; font-size: clamp(34px, 4vw, 50px); line-height: 1; letter-spacin
 .agent-bottom-select > span { font-size: 11px; }
 .agent-bottom-select select { height: 44px; padding-left: 12px; font-size: 14px; }
 .agent-future-note { font-size: 10px; }
+.agent-approval-card { display: grid; gap: 14px; margin: 12px auto; padding: 18px; border: 1px solid color-mix(in srgb, var(--danger) 35%, var(--line)); border-left: 4px solid var(--danger); border-radius: 10px; background: color-mix(in srgb, var(--danger) 7%, var(--panel)); }
+.agent-approval-card strong { font-size: 15px; }
+.agent-approval-card p { max-height: 160px; overflow: auto; margin: 9px 0 0; color: var(--muted); font: 500 13px/1.5 var(--font-geist-mono), monospace; white-space: pre-wrap; }
+.agent-approval-actions { display: flex; gap: 9px; }
+.agent-approval-actions button { min-height: 40px; padding: 0 14px; border: 1px solid var(--line-strong); border-radius: 7px; background: var(--surface); color: var(--ink); cursor: pointer; font-size: 13px; font-weight: 650; }
+.agent-approval-actions button:first-child { border-color: var(--accent); background: var(--accent); color: var(--accent-ink); }
+.conversation-menu { position: relative; }
+.conversation-menu > summary { width: 44px; height: 44px; display: grid; place-items: center; border: 1px solid var(--line-strong); border-radius: 7px; background: color-mix(in srgb, var(--panel) 72%, transparent); color: var(--ink); cursor: pointer; list-style: none; }
+.conversation-menu > summary::-webkit-details-marker { display: none; }
+.conversation-menu-popover { position: absolute; right: 0; bottom: calc(100% + 8px); z-index: 5; min-width: 190px; display: grid; gap: 3px; padding: 6px; border: 1px solid var(--line-strong); border-radius: 9px; background: var(--surface); box-shadow: 0 14px 34px rgba(35,55,76,.18); }
+.conversation-menu-popover button { display: flex; align-items: center; gap: 9px; min-height: 38px; padding: 0 10px; border: 0; border-radius: 6px; background: transparent; color: var(--ink); cursor: pointer; text-align: left; font-size: 13px; }
+.conversation-menu-popover button:hover { background: var(--panel-soft); }
+.conversation-menu-popover button:disabled { opacity: .4; cursor: not-allowed; }
 
 /* Raise supporting dashboard copy without changing the visual hierarchy of display headings. */
 .day-summary, .mcp-page-header > div > p:last-child { font-size: 15px; }
@@ -556,3 +569,27 @@ h1 { margin: 0; font-size: clamp(34px, 4vw, 50px); line-height: 1; letter-spacin
 .mcp-add-server form > label, .mcp-add-server input:not([type="checkbox"]), .mcp-add-server textarea { font-size: 13px; }
 .inbox-row strong { font-size: 14px; }
 .inbox-row button, .inbox-empty span { font-size: 12px; }
+
+/* MCP servers are inspectable, but their tool lists stay collapsed until requested. */
+.mcp-view { max-width: 1280px; }
+.mcp-server-list { gap: 18px; }
+.mcp-server-card { padding: 24px; }
+.mcp-server-card > header { gap: 14px; }
+.mcp-server-card > header strong { font-size: 17px; }
+.mcp-server-card > header span { font-size: 12px; }
+.mcp-server-card > code { margin: 18px 0 14px; padding: 11px 13px; font-size: 11px; }
+.mcp-server-actions button { min-height: 40px; padding-inline: 14px; font-size: 13px; }
+.mcp-server-actions span { font-size: 11px; }
+.mcp-tools-dropdown { margin-top: 18px; border-top: 1px solid var(--line); }
+.mcp-tools-dropdown > summary { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 15px 0 11px; color: var(--ink); cursor: pointer; list-style: none; font-size: 15px; font-weight: 650; }
+.mcp-tools-dropdown > summary::-webkit-details-marker { display: none; }
+.mcp-tools-dropdown > summary::before { content: "▸"; color: var(--accent); font-size: 18px; transition: transform 160ms ease; }
+.mcp-tools-dropdown[open] > summary::before { transform: rotate(90deg); }
+.mcp-tools-dropdown > summary strong { margin-left: auto; color: var(--muted); font: 550 12px/1.2 var(--font-geist-mono), monospace; }
+.mcp-tool-list { margin-top: 2px; }
+.mcp-tool-row { min-height: 78px; gap: 18px; }
+.mcp-tool-row > div strong { font-size: 13px; }
+.mcp-tool-row > div span { max-width: 800px; font-size: 13px; line-height: 1.5; white-space: normal; }
+.mcp-tool-row > span { font-size: 10px; }
+.mcp-tool-row > label { font-size: 13px; }
+.mcp-tool-row button { min-height: 36px; font-size: 12px; }

@@ -28,9 +28,30 @@ export type ReminderQueryResult = {
   truncated: boolean;
 };
 
+export type CreateReminderInput = {
+  listName: string;
+  title: string;
+  notes?: string;
+  dueAt?: string;
+  priority?: number;
+};
+
+export type UpdateReminderInput = {
+  id: string;
+  title?: string;
+  notes?: string;
+  dueAt?: string | null;
+  priority?: number;
+  completed?: boolean;
+};
+
 export interface RemindersRepository {
   listLists(): Promise<ReminderList[]>;
   listReminders(query: ReminderQuery): Promise<ReminderQueryResult>;
+  createReminder(input: CreateReminderInput): Promise<Reminder>;
+  updateReminder(input: UpdateReminderInput): Promise<Reminder>;
+  moveReminder(id: string, listName: string): Promise<Reminder>;
+  deleteReminder(id: string): Promise<{ id: string }>;
 }
 
 type ScriptRunner = (script: string, argument: unknown) => Promise<string>;
@@ -120,6 +141,67 @@ function run() {
 }
 `;
 
+const CREATE_SCRIPT = String.raw`
+ObjC.import("stdlib");
+function run() {
+  const input = JSON.parse(ObjC.unwrap($.getenv("LIFE_REMINDERS_MCP_INPUT")) || "{}");
+  const app = Application("Reminders");
+  const list = app.lists.byName(String(input.listName));
+  if (!list.name()) throw new Error("The requested reminder list was not found.");
+  if (!input.title || !String(input.title).trim()) throw new Error("A reminder title is required.");
+  const reminder = app.Reminder({ name: String(input.title).trim() });
+  list.reminders.push(reminder);
+  if (input.notes !== undefined) reminder.body = String(input.notes);
+  if (input.dueAt) reminder.dueDate = new Date(String(input.dueAt));
+  if (input.priority !== undefined) reminder.priority = Number(input.priority) || 0;
+  return JSON.stringify({ id: String(reminder.id()), title: String(reminder.name()), list: String(list.name()), completed: Boolean(reminder.completed()), dueAt: reminder.dueDate() ? new Date(reminder.dueDate()).toISOString() : null, priority: Number(reminder.priority()) || 0 });
+}
+`;
+
+const UPDATE_SCRIPT = String.raw`
+ObjC.import("stdlib");
+function run() {
+  const input = JSON.parse(ObjC.unwrap($.getenv("LIFE_REMINDERS_MCP_INPUT")) || "{}");
+  const app = Application("Reminders");
+  const matches = app.reminders.whose({ id: String(input.id) })();
+  if (!matches.length) throw new Error("The reminder was not found.");
+  const reminder = matches[0];
+  if (input.title !== undefined) reminder.name = String(input.title).trim();
+  if (input.notes !== undefined) reminder.body = String(input.notes);
+  if (input.dueAt !== undefined) reminder.dueDate = input.dueAt === null ? null : new Date(String(input.dueAt));
+  if (input.priority !== undefined) reminder.priority = Number(input.priority) || 0;
+  if (input.completed !== undefined) reminder.completed = Boolean(input.completed);
+  return JSON.stringify({ id: String(reminder.id()), title: String(reminder.name()), list: String(reminder.container.name()), completed: Boolean(reminder.completed()), dueAt: reminder.dueDate() ? new Date(reminder.dueDate()).toISOString() : null, priority: Number(reminder.priority()) || 0 });
+}
+`;
+
+const MOVE_SCRIPT = String.raw`
+ObjC.import("stdlib");
+function run() {
+  const input = JSON.parse(ObjC.unwrap($.getenv("LIFE_REMINDERS_MCP_INPUT")) || "{}");
+  const app = Application("Reminders");
+  const matches = app.reminders.whose({ id: String(input.id) })();
+  if (!matches.length) throw new Error("The reminder was not found.");
+  const list = app.lists.byName(String(input.listName));
+  if (!list.name()) throw new Error("The requested reminder list was not found.");
+  const reminder = matches[0];
+  reminder.container = list;
+  return JSON.stringify({ id: String(reminder.id()), title: String(reminder.name()), list: String(list.name()), completed: Boolean(reminder.completed()), dueAt: reminder.dueDate() ? new Date(reminder.dueDate()).toISOString() : null, priority: Number(reminder.priority()) || 0 });
+}
+`;
+
+const DELETE_SCRIPT = String.raw`
+ObjC.import("stdlib");
+function run() {
+  const input = JSON.parse(ObjC.unwrap($.getenv("LIFE_REMINDERS_MCP_INPUT")) || "{}");
+  const app = Application("Reminders");
+  const matches = app.reminders.whose({ id: String(input.id) })();
+  if (!matches.length) throw new Error("The reminder was not found.");
+  matches[0].delete();
+  return JSON.stringify({ id: String(input.id) });
+}
+`;
+
 function runAppleScript(script: string, argument: unknown): Promise<string> {
   return new Promise((resolve, reject) => {
     execFile(
@@ -160,6 +242,22 @@ export class AppleRemindersRepository implements RemindersRepository {
 
   async listReminders(query: ReminderQuery): Promise<ReminderQueryResult> {
     return parseJson<ReminderQueryResult>(await this.runner(REMINDERS_SCRIPT, query));
+  }
+
+  async createReminder(input: CreateReminderInput): Promise<Reminder> {
+    return parseJson<Reminder>(await this.runner(CREATE_SCRIPT, input));
+  }
+
+  async updateReminder(input: UpdateReminderInput): Promise<Reminder> {
+    return parseJson<Reminder>(await this.runner(UPDATE_SCRIPT, input));
+  }
+
+  async moveReminder(id: string, listName: string): Promise<Reminder> {
+    return parseJson<Reminder>(await this.runner(MOVE_SCRIPT, { id, listName }));
+  }
+
+  async deleteReminder(id: string): Promise<{ id: string }> {
+    return parseJson<{ id: string }>(await this.runner(DELETE_SCRIPT, { id }));
   }
 }
 

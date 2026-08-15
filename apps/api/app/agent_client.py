@@ -50,6 +50,26 @@ from app.config import Settings
 AgentStreamEvent = dict[str, Any]
 
 
+def delete_pi_session_artifacts(session_id: str | None) -> None:
+    """Remove the ACP mapping and underlying Pi JSONL session for a conversation."""
+    if not session_id:
+        return
+    map_path = Path.home() / ".pi" / "pi-acp" / "session-map.json"
+    if not map_path.is_file():
+        return
+    try:
+        payload = json.loads(map_path.read_text(encoding="utf-8"))
+        entry = payload.get("sessions", {}).pop(session_id, None)
+        if entry and isinstance(entry.get("sessionFile"), str):
+            session_path = Path(entry["sessionFile"])
+            if session_path.is_file():
+                session_path.unlink()
+        map_path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    except (OSError, TypeError, ValueError):
+        # Database deletion should still succeed if an old/malformed ACP map cannot be cleaned.
+        return
+
+
 def _bounded_json_value(value: Any, limit: int = 8000) -> Any:
     if value is None:
         return None

@@ -1,3 +1,4 @@
+import asyncio
 import json
 import os
 from pathlib import Path
@@ -8,10 +9,12 @@ from fastapi import APIRouter, HTTPException, Request, status
 
 from app.config import Settings
 from app.database import SessionDep
+from app.mcp_approvals import store as approval_store
 from app.mcp_config import McpServerRecord, McpServerStore, utc_now
 from app.mcp_gateway import McpGatewayError, run_mcp_gateway
 from app.models import AgentLedgerEntry
 from app.schemas import (
+    McpApprovalRead,
     McpServerCreate,
     McpServerRead,
     McpServerTestRead,
@@ -81,6 +84,49 @@ def record_event(
     session.commit()
 
 
+async def execute_mcp_call(
+    request: Request,
+    session: SessionDep,
+    server: McpServerRecord,
+    tool_name: str,
+    arguments: dict[str, Any],
+    *,
+    approval_id: str | None = None,
+) -> McpToolCallRead:
+    result = await run_mcp_gateway(
+        settings_from(request),
+        server,
+        action="call",
+        tool=tool_name,
+        arguments=arguments,
+    )
+    is_error = result.get("isError") is True
+    record_event(
+        session,
+        event_type="mcp_tool_called",
+        status_value="failed" if is_error else "completed",
+        summary=f"MCP tool called: {server.name} / {tool_name}",
+        tool_name=tool_name,
+        input_value=arguments,
+        output_value=result,
+    )
+    if approval_id:
+        approval_store.finish(
+            approval_id,
+            status="completed" if not is_error else "failed",
+            result=result,
+        )
+    return McpToolCallRead(
+        is_error=is_error,
+        content=result.get("content") if isinstance(result.get("content"), list) else [],
+        structured_content=(
+            result.get("structuredContent")
+            if isinstance(result.get("structuredContent"), dict)
+            else None
+        ),
+    )
+
+
 @router.get("/servers", response_model=list[McpServerRead])
 def list_mcp_servers(request: Request) -> list[McpServerRecord]:
     return store_from(request).list()
@@ -132,21 +178,10 @@ def update_mcp_server(
     if payload.allowed_tools is not None:
         discovered = {tool.name: tool for tool in map(tool_view, server.discovered_tools)}
         unknown = [name for name in payload.allowed_tools if name not in discovered]
-        unsafe = [
-            name
-            for name in payload.allowed_tools
-            if name in discovered
-            and (not discovered[name].read_only or discovered[name].destructive)
-        ]
         if unknown:
             raise HTTPException(
                 status_code=400,
                 detail=f"Test the server before allowing: {', '.join(unknown)}",
-            )
-        if unsafe:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Only verified read-only tools can be allowed: {', '.join(unsafe)}",
             )
         server.allowed_tools = list(dict.fromkeys(payload.allowed_tools))
     if payload.enabled is not None:
@@ -221,33 +256,79 @@ async def call_mcp_tool(
         raise HTTPException(status_code=409, detail="This MCP server is disabled.")
     if tool_name not in server.allowed_tools:
         raise HTTPException(status_code=403, detail="This MCP tool is not allowed.")
-    try:
-        result = await run_mcp_gateway(
-            settings_from(request),
-            server,
-            action="call",
-            tool=tool_name,
+    discovered = next(
+        (tool for tool in server.discovered_tools if tool.get("name") == tool_name),
+        None,
+    )
+    annotations = discovered.get("annotations") or {} if discovered else {}
+    is_read_only = (
+        annotations.get("readOnlyHint") is True
+        and annotations.get("destructiveHint") is not True
+    )
+    if not is_read_only:
+        decision_future = asyncio.get_running_loop().create_future()
+        approval = approval_store.create(
+            server_id=server.id,
+            server_name=server.name,
+            tool_name=tool_name,
             arguments=payload.arguments,
+            decision=decision_future,
         )
-        is_error = result.get("isError") is True
         record_event(
             session,
-            event_type="mcp_tool_called",
-            status_value="failed" if is_error else "completed",
-            summary=f"MCP tool called: {server.name} / {tool_name}",
+            event_type="mcp_approval_requested",
+            status_value="pending",
+            summary=f"Approval requested: {server.name} / {tool_name}",
             tool_name=tool_name,
             input_value=payload.arguments,
-            output_value=result,
         )
-        return McpToolCallRead(
-            is_error=is_error,
-            content=result.get("content") if isinstance(result.get("content"), list) else [],
-            structured_content=(
-                result.get("structuredContent")
-                if isinstance(result.get("structuredContent"), dict)
-                else None
-            ),
-        )
+        try:
+            decision = await asyncio.wait_for(
+                asyncio.shield(decision_future),
+                timeout=300,
+            )
+        except TimeoutError:
+            approval_store.finish(approval.id, status="expired", error="Approval timed out.")
+            record_event(
+                session,
+                event_type="mcp_approval_expired",
+                status_value="failed",
+                summary=f"MCP approval expired: {server.name} / {tool_name}",
+                tool_name=tool_name,
+                input_value=payload.arguments,
+                error="Approval timed out.",
+            )
+            return McpToolCallRead(
+                is_error=True,
+                content=[
+                    {
+                        "type": "text",
+                        "text": "The approval request expired without a response.",
+                    }
+                ],
+                structured_content=None,
+            )
+        if decision != "approved":
+            approval_store.finish(approval.id, status="rejected")
+            return McpToolCallRead(
+                is_error=True,
+                content=[{"type": "text", "text": "The user rejected this MCP action."}],
+                structured_content=None,
+            )
+        try:
+            return await execute_mcp_call(
+                request,
+                session,
+                server,
+                tool_name,
+                payload.arguments,
+                approval_id=approval.id,
+            )
+        except McpGatewayError as error:
+            approval_store.finish(approval.id, status="failed", error=str(error))
+            raise HTTPException(status_code=502, detail=str(error)) from error
+    try:
+        return await execute_mcp_call(request, session, server, tool_name, payload.arguments)
     except McpGatewayError as error:
         record_event(
             session,
@@ -259,3 +340,50 @@ async def call_mcp_tool(
             error=str(error),
         )
         raise HTTPException(status_code=502, detail=str(error)) from error
+
+
+@router.get("/approvals", response_model=list[McpApprovalRead])
+def list_mcp_approvals() -> list[McpApprovalRead]:
+    return [
+        McpApprovalRead.model_validate(item, from_attributes=True)
+        for item in approval_store.list_pending()
+    ]
+
+
+@router.post("/approvals/{approval_id}/reject", response_model=McpApprovalRead)
+def reject_mcp_approval(approval_id: str, session: SessionDep) -> McpApprovalRead:
+    approval = approval_store.get(approval_id)
+    if approval is None:
+        raise HTTPException(status_code=404, detail="MCP approval not found.")
+    approval_store.resolve(approval_id, "rejected")
+    record_event(
+        session,
+        event_type="mcp_approval_rejected",
+        status_value="completed",
+        summary=f"MCP approval rejected: {approval.server_name} / {approval.tool_name}",
+        tool_name=approval.tool_name,
+        input_value=approval.arguments,
+    )
+    return McpApprovalRead.model_validate(approval, from_attributes=True)
+
+
+@router.post("/approvals/{approval_id}/approve", response_model=McpApprovalRead)
+async def approve_mcp_approval(
+    approval_id: str,
+    session: SessionDep,
+) -> McpApprovalRead:
+    approval = approval_store.get(approval_id)
+    if approval is None:
+        raise HTTPException(status_code=404, detail="MCP approval not found.")
+    if approval.status != "pending":
+        return McpApprovalRead.model_validate(approval, from_attributes=True)
+    approval_store.resolve(approval_id, "approved")
+    record_event(
+        session,
+        event_type="mcp_approval_approved",
+        status_value="completed",
+        summary=f"MCP approval granted: {approval.server_name} / {approval.tool_name}",
+        tool_name=approval.tool_name,
+        input_value=approval.arguments,
+    )
+    return McpApprovalRead.model_validate(approval_store.get(approval.id), from_attributes=True)

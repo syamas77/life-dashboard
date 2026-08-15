@@ -79,10 +79,6 @@ async function main() {
     if (!request.server.allowedTools.includes(request.tool)) {
       throw new Error("This MCP tool is not in the server allowlist.");
     }
-    if (tool.annotations?.readOnlyHint !== true || tool.annotations?.destructiveHint === true) {
-      throw new Error("Only tools explicitly advertised as read-only and non-destructive can run through this gateway.");
-    }
-
     const result = await withTimeout(
       client.callTool({ name: request.tool, arguments: request.arguments }),
       35_000,

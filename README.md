@@ -81,7 +81,7 @@ Agent → life-dashboard extension → FastAPI policy API
       → external service (for example GitHub or Apple Reminders)
 ```
 
-The gateway is generic; it does not inherently call Apple Reminders. It launches whichever executable is stored in the selected server record. It lives in `apps/mcp-gateway`; it is independent of any particular MCP server and can launch local stdio servers such as GitHub or Apple Reminders.
+The gateway is generic; it does not inherently call Apple Reminders. It launches whichever executable is stored in the selected server record. It lives in `apps/mcp-gateway`; it is independent of any particular MCP server and can launch local stdio servers such as GitHub or Apple Reminders. Read-only tools run immediately when allowed. Write tools create an approval card in the Agent panel and are executed only after the user approves the exact server, tool, and arguments.
 
 ## Future additions
 

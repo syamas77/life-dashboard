@@ -182,6 +182,20 @@ class McpToolCallRead(ApiModel):
     is_error: bool
     content: list[dict[str, object]]
     structured_content: dict[str, object] | None
+    approval_required: bool = False
+    approval_id: str | None = None
+
+
+class McpApprovalRead(ApiModel):
+    id: str
+    server_id: str
+    server_name: str
+    tool_name: str
+    arguments: dict[str, object]
+    created_at: datetime
+    status: str
+    result: dict[str, object] | None = None
+    error: str | None = None
 
 
 class HealthRead(ApiModel):

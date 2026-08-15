@@ -8,6 +8,7 @@ import type {
   ReminderQueryResult,
   ReminderList,
   RemindersRepository,
+  Reminder,
 } from "../src/apple-reminders.js";
 import { createServer } from "../src/server.js";
 
@@ -16,6 +17,22 @@ class FakeRemindersRepository implements RemindersRepository {
 
   async listLists(): Promise<ReminderList[]> {
     return [{ id: "list-1", name: "Personal" }];
+  }
+
+  async createReminder(): Promise<Reminder> {
+    return { id: "created", title: "Created", list: "Personal", completed: false, dueAt: null, priority: 0 };
+  }
+
+  async updateReminder(): Promise<Reminder> {
+    return { id: "reminder-1", title: "Book dentist", list: "Personal", completed: false, dueAt: null, priority: 0 };
+  }
+
+  async moveReminder(): Promise<Reminder> {
+    return { id: "reminder-1", title: "Book dentist", list: "Personal", completed: false, dueAt: null, priority: 0 };
+  }
+
+  async deleteReminder(): Promise<{ id: string }> {
+    return { id: "reminder-1" };
   }
 
   async listReminders(query: ReminderQuery): Promise<ReminderQueryResult> {
@@ -45,17 +62,23 @@ async function connect(repository: RemindersRepository) {
   return { client, server };
 }
 
-test("advertises only two read-only Apple Reminders tools", async () => {
+test("advertises read and approval-gated Apple Reminders tools", async () => {
   const { client, server } = await connect(new FakeRemindersRepository());
   try {
     const response = await client.listTools();
     assert.deepEqual(response.tools.map((tool) => tool.name).sort(), [
+      "apple_reminders_complete",
+      "apple_reminders_create",
+      "apple_reminders_delete",
       "apple_reminders_list",
       "apple_reminders_list_lists",
+      "apple_reminders_move",
+      "apple_reminders_update",
     ]);
     for (const tool of response.tools) {
-      assert.equal(tool.annotations?.readOnlyHint, true);
-      assert.equal(tool.annotations?.destructiveHint, false);
+      const writeTool = tool.name !== "apple_reminders_list" && tool.name !== "apple_reminders_list_lists";
+      assert.equal(tool.annotations?.readOnlyHint, !writeTool);
+      assert.equal(tool.annotations?.destructiveHint, tool.name === "apple_reminders_delete");
     }
   } finally {
     await client.close();

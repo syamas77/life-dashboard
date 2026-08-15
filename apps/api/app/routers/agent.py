@@ -7,7 +7,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 
-from app.agent_client import get_pi_configuration, stream_pi_prompt
+from app.agent_client import delete_pi_session_artifacts, get_pi_configuration, stream_pi_prompt
 from app.agent_runtime import AgentRun, AgentRunRegistry
 from app.config import get_settings
 from app.database import SessionDep
@@ -125,6 +125,7 @@ def list_conversation_messages(
 )
 def delete_conversation(conversation_id: int, session: SessionDep) -> Response:
     conversation = find_conversation(conversation_id, session)
+    delete_pi_session_artifacts(conversation.acp_session_id)
     session.delete(conversation)
     session.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)

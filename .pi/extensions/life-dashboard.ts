@@ -27,9 +27,17 @@ async function callMcpTool(
     is_error?: boolean;
     content?: Array<{ type: string; text?: string }>;
     structured_content?: Record<string, unknown> | null;
+    approval_required?: boolean;
+    approval_id?: string | null;
   };
   if (!response.ok || payload.is_error) {
     throw new Error(payload.detail ?? `The ${serverName} MCP tool failed.`);
+  }
+  if (payload.approval_required) {
+    return {
+      content: [{ type: "text" as const, text: `Approval required before running ${serverName} / ${toolName}. Review it in the Agent panel.` }],
+      details: { approvalRequired: true, approvalId: payload.approval_id },
+    };
   }
   const text = payload.content
     ?.filter((item) => item.type === "text" && item.text)
@@ -87,7 +95,7 @@ export default function lifeDashboardExtension(pi: ExtensionAPI) {
     promptGuidelines: [
       "Use action list_tools first when you need to discover available servers or tools.",
       "Use action call only with a server and tool returned by list_tools.",
-      "Only approved read-only tools can run. Never claim that an MCP tool changed external data.",
+      "Read-only tools run immediately when approved. Write tools are approval-gated: call them when explicitly requested and tell the user to review the approval card. Never claim an MCP action succeeded until its result confirms it.",
     ],
     parameters: Type.Union([
       Type.Object({ action: Type.Literal("list_tools") }),
@@ -106,7 +114,7 @@ export default function lifeDashboardExtension(pi: ExtensionAPI) {
           name: string;
           enabled: boolean;
           allowed_tools: string[];
-          discovered_tools: Array<{ name: string; description?: string | null }>;
+          discovered_tools: Array<{ name: string; description?: string | null; inputSchema?: Record<string, unknown> }>;
         }>;
         const available = servers
           .filter((server) => server.enabled && server.allowed_tools.length > 0)
@@ -114,7 +122,11 @@ export default function lifeDashboardExtension(pi: ExtensionAPI) {
             server: server.name,
             tools: server.discovered_tools
               .filter((tool) => server.allowed_tools.includes(tool.name))
-              .map((tool) => ({ name: tool.name, description: tool.description ?? null })),
+              .map((tool) => ({
+                name: tool.name,
+                description: tool.description ?? null,
+                inputSchema: tool.inputSchema ?? {},
+              })),
           }));
         return {
           content: [{ type: "text", text: JSON.stringify(available) }],

@@ -117,5 +117,111 @@ export function createServer(repository: RemindersRepository = new AppleReminder
     },
   );
 
+  server.registerTool(
+    "apple_reminders_create",
+    {
+      title: "Create Apple Reminder",
+      description: "Create a reminder. This changes Apple Reminders and requires user approval.",
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+      inputSchema: z.object({
+        listName: z.string().trim().min(1).max(200),
+        title: z.string().trim().min(1).max(500),
+        notes: z.string().max(5000).optional(),
+        dueAt: z.string().datetime().optional(),
+        priority: z.number().int().min(0).max(9).optional(),
+      }),
+      outputSchema: reminderSchema,
+    },
+    async (input) => {
+      try {
+        const output = await repository.createReminder(input);
+        return { content: textResult(output), structuredContent: output };
+      } catch (error) {
+        return errorResult(error);
+      }
+    },
+  );
+
+  server.registerTool(
+    "apple_reminders_update",
+    {
+      title: "Update Apple Reminder",
+      description: "Update a reminder. This changes Apple Reminders and requires user approval.",
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+      inputSchema: z.object({
+        id: z.string().min(1),
+        title: z.string().trim().min(1).max(500).optional(),
+        notes: z.string().max(5000).optional(),
+        dueAt: z.string().datetime().nullable().optional(),
+        priority: z.number().int().min(0).max(9).optional(),
+        completed: z.boolean().optional(),
+      }),
+      outputSchema: reminderSchema,
+    },
+    async (input) => {
+      try {
+        const output = await repository.updateReminder(input);
+        return { content: textResult(output), structuredContent: output };
+      } catch (error) {
+        return errorResult(error);
+      }
+    },
+  );
+
+  server.registerTool(
+    "apple_reminders_complete",
+    {
+      title: "Complete Apple Reminder",
+      description: "Mark a reminder complete or incomplete. This changes Apple Reminders and requires user approval.",
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+      inputSchema: z.object({ id: z.string().min(1), completed: z.boolean().default(true) }),
+      outputSchema: reminderSchema,
+    },
+    async ({ id, completed }) => {
+      try {
+        const output = await repository.updateReminder({ id, completed });
+        return { content: textResult(output), structuredContent: output };
+      } catch (error) {
+        return errorResult(error);
+      }
+    },
+  );
+
+  server.registerTool(
+    "apple_reminders_move",
+    {
+      title: "Move Apple Reminder",
+      description: "Move a reminder to another list. This changes Apple Reminders and requires user approval.",
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+      inputSchema: z.object({ id: z.string().min(1), listName: z.string().trim().min(1).max(200) }),
+    },
+    async ({ id, listName }) => {
+      try {
+        const output = await repository.moveReminder(id, listName);
+        return { content: textResult(output), structuredContent: output };
+      } catch (error) {
+        return errorResult(error);
+      }
+    },
+  );
+
+  server.registerTool(
+    "apple_reminders_delete",
+    {
+      title: "Delete Apple Reminder",
+      description: "Delete a reminder permanently. This is destructive and requires user approval.",
+      annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
+      inputSchema: z.object({ id: z.string().min(1) }),
+    },
+    async ({ id }) => {
+      try {
+        const output = await repository.deleteReminder(id);
+        return { content: textResult(output), structuredContent: output };
+      } catch (error) {
+        return errorResult(error);
+      }
+    },
+  );
+
   return server;
 }
