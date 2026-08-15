@@ -355,7 +355,7 @@ export default function Dashboard() {
       behavior: reduceMotion ? "auto" : "smooth",
       block: "end",
     });
-  }, [area, agentMessages, agentActivity]);
+  }, [area, agentMessages, agentActivity, mcpApprovals]);
 
   useEffect(() => {
     const closeConversationMenu = (event: PointerEvent) => {
