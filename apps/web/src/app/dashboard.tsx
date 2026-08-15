@@ -223,6 +223,7 @@ export default function Dashboard() {
   const [approvals, setApprovals] = useState(["Send follow-up to Maya", "Create calendar hold"]);
   const agentMessagesEndRef = useRef<HTMLDivElement>(null);
   const conversationMenuRef = useRef<HTMLDetailsElement>(null);
+  const mcpApprovalSignatureRef = useRef("");
 
   useEffect(() => {
     let active = true;
@@ -351,7 +352,16 @@ export default function Dashboard() {
   useEffect(() => {
     if (area !== "Agent") return;
     const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    agentMessagesEndRef.current?.scrollIntoView({
+    const approvalSignature = mcpApprovals.map((approval) => approval.id).join(",");
+    const approvalChanged = approvalSignature !== mcpApprovalSignatureRef.current;
+    mcpApprovalSignatureRef.current = approvalSignature;
+    const end = agentMessagesEndRef.current;
+    const container = end?.parentElement;
+    const distanceFromBottom = container
+      ? container.scrollHeight - container.scrollTop - container.clientHeight
+      : 0;
+    if (!approvalChanged && distanceFromBottom > 180) return;
+    end?.scrollIntoView({
       behavior: reduceMotion ? "auto" : "smooth",
       block: "end",
     });
