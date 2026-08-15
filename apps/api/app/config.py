@@ -19,7 +19,7 @@ class Settings(BaseSettings):
     mcp_config_path: str = str(PROJECT_ROOT / "apps/api/data/mcp-servers.json")
     mcp_node_command: str = "node"
     mcp_gateway_script: str = str(
-        PROJECT_ROOT / "apps/mcp-apple-reminders/dist/src/gateway-cli.js"
+        PROJECT_ROOT / "apps/mcp-gateway/dist/src/gateway-cli.js"
     )
     mcp_apple_reminders_script: str = str(
         PROJECT_ROOT / "apps/mcp-apple-reminders/dist/src/index.js"

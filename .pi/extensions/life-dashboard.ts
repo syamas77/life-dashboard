@@ -3,13 +3,18 @@ import { Type } from "typebox";
 
 const apiBaseUrl = process.env.LIFE_API_INTERNAL_URL ?? "http://127.0.0.1:8000/api/v1";
 
-async function callAppleRemindersTool(
+async function callMcpTool(
+  serverName: string,
   toolName: string,
   parameters: Record<string, unknown>,
   signal: AbortSignal,
 ) {
+  const serversResponse = await fetch(`${apiBaseUrl}/mcp/servers`, { signal });
+  const servers = (await serversResponse.json()) as Array<{ id: string; name: string }>;
+  const server = servers.find((item) => item.name.toLowerCase() === serverName.toLowerCase());
+  if (!server) throw new Error(`${serverName} MCP server is not configured.`);
   const response = await fetch(
-    `${apiBaseUrl}/mcp/servers/apple-reminders/tools/${toolName}/call`,
+    `${apiBaseUrl}/mcp/servers/${server.id}/tools/${toolName}/call`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -24,7 +29,7 @@ async function callAppleRemindersTool(
     structured_content?: Record<string, unknown> | null;
   };
   if (!response.ok || payload.is_error) {
-    throw new Error(payload.detail ?? "The Apple Reminders MCP tool failed.");
+    throw new Error(payload.detail ?? `The ${serverName} MCP tool failed.`);
   }
   const text = payload.content
     ?.filter((item) => item.type === "text" && item.text)
@@ -75,43 +80,48 @@ export default function lifeDashboardExtension(pi: ExtensionAPI) {
   });
 
   pi.registerTool({
-    name: "apple_reminders_list_lists",
-    label: "List Apple Reminder Lists",
-    description: "Read the user's Apple Reminders list names through the local, read-only MCP policy gateway.",
-    promptSnippet: "List the available Apple Reminders lists",
+    name: "mcp",
+    label: "MCP",
+    description: "Discover and call enabled, explicitly approved MCP tools through the Life Dashboard policy gateway. Only read-only, non-destructive tools are available.",
+    promptSnippet: "Use an approved Life Dashboard MCP tool",
     promptGuidelines: [
-      "Use only when the user asks about Apple Reminders or needs to choose a reminder list.",
-      "This tool is read-only. Do not imply that it can create, complete, edit, move, or delete reminders.",
+      "Use action list_tools first when you need to discover available servers or tools.",
+      "Use action call only with a server and tool returned by list_tools.",
+      "Only approved read-only tools can run. Never claim that an MCP tool changed external data.",
     ],
-    parameters: Type.Object({}),
+    parameters: Type.Union([
+      Type.Object({ action: Type.Literal("list_tools") }),
+      Type.Object({
+        action: Type.Literal("call"),
+        server: Type.String({ minLength: 1, maxLength: 100 }),
+        tool: Type.String({ minLength: 1, maxLength: 200 }),
+        arguments: Type.Optional(Type.Record(Type.String(), Type.Unknown())),
+      }),
+    ]),
     async execute(_toolCallId, params, signal) {
-      return callAppleRemindersTool("apple_reminders_list_lists", params, signal);
-    },
-  });
-
-  pi.registerTool({
-    name: "apple_reminders_list",
-    label: "Read Apple Reminders",
-    description: "Read and filter Apple Reminders through the local MCP policy gateway. Notes stay excluded unless explicitly requested.",
-    promptSnippet: "Read Apple Reminders without changing them",
-    promptGuidelines: [
-      "Use when the user asks to inspect, search, or summarize Apple Reminders.",
-      "Request notes only when they are necessary for the user's question.",
-      "This tool is read-only. Never claim it changed a reminder.",
-    ],
-    parameters: Type.Object({
-      listName: Type.Optional(Type.String({ minLength: 1, maxLength: 200 })),
-      query: Type.Optional(Type.String({ minLength: 1, maxLength: 200 })),
-      status: Type.Optional(Type.Union([
-        Type.Literal("incomplete"),
-        Type.Literal("completed"),
-        Type.Literal("all"),
-      ])),
-      includeNotes: Type.Optional(Type.Boolean()),
-      limit: Type.Optional(Type.Integer({ minimum: 1, maximum: 100 })),
-    }),
-    async execute(_toolCallId, params, signal) {
-      return callAppleRemindersTool("apple_reminders_list", params, signal);
+      if (params.action === "list_tools") {
+        const response = await fetch(`${apiBaseUrl}/mcp/servers`, { signal });
+        if (!response.ok) throw new Error(`Could not list MCP servers (${response.status}).`);
+        const servers = (await response.json()) as Array<{
+          name: string;
+          enabled: boolean;
+          allowed_tools: string[];
+          discovered_tools: Array<{ name: string; description?: string | null }>;
+        }>;
+        const available = servers
+          .filter((server) => server.enabled && server.allowed_tools.length > 0)
+          .map((server) => ({
+            server: server.name,
+            tools: server.discovered_tools
+              .filter((tool) => server.allowed_tools.includes(tool.name))
+              .map((tool) => ({ name: tool.name, description: tool.description ?? null })),
+          }));
+        return {
+          content: [{ type: "text", text: JSON.stringify(available) }],
+          details: { servers: available },
+        };
+      }
+      return callMcpTool(params.server, params.tool, params.arguments ?? {}, signal);
     },
   });
 }

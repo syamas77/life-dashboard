@@ -26,10 +26,13 @@ cd apps/agent
 npm install
 ```
 
-Install and verify the read-only Apple Reminders MCP server on macOS:
+Install the policy gateway and verify the read-only Apple Reminders MCP server on macOS:
 
 ```bash
-cd apps/mcp-apple-reminders
+cd apps/mcp-gateway
+npm install
+npm run build
+cd ../mcp-apple-reminders
 npm install
 npm run check
 ```
@@ -67,6 +70,18 @@ SQLite is embedded and stores data directly in `apps/api/data/life.db`. It does 
 
 - Pi through ACP for persistent local agent conversations
 - A read-only Apple Reminders MCP server connected through a FastAPI policy gateway, dashboard testing UI, per-tool allowlists, Pi bridge, and ledger events
+
+## MCP request flow
+
+The Agent does not launch external MCP servers directly. It calls the generic `mcp` tool exposed by `.pi/extensions/life-dashboard.ts`. That extension sends the request to FastAPI, which checks that the server is enabled and the requested tool is allowlisted. FastAPI then starts the short-lived Node policy gateway, which launches the configured local MCP executable over stdio, verifies the requested tool is read-only and non-destructive, calls it, and returns bounded JSON. FastAPI records the test or call in the Agent Ledger before returning the result to the Agent.
+
+```text
+Agent → life-dashboard extension → FastAPI policy API
+      → Node MCP policy gateway → configured local MCP server
+      → external service (for example GitHub or Apple Reminders)
+```
+
+The gateway is generic; it does not inherently call Apple Reminders. It launches whichever executable is stored in the selected server record. It lives in `apps/mcp-gateway`; it is independent of any particular MCP server and can launch local stdio servers such as GitHub or Apple Reminders.
 
 ## Future additions
 

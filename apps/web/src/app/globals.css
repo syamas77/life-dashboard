@@ -520,3 +520,39 @@ h1 { margin: 0; font-size: clamp(34px, 4vw, 50px); line-height: 1; letter-spacin
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
+
+/* Readability pass: conversational content should not use compact dashboard sizing. */
+.agent-view { max-width: 1400px; }
+.agent-chat-header { margin-bottom: 18px; }
+.agent-chat-identity strong { font-size: 16px; }
+.agent-chat-identity small { font-size: 11px; }
+.agent-current-scope, .agent-config-loading { font-size: 11px; }
+.agent-messages { max-width: 1320px; margin-inline: auto; padding: 30px 34px; }
+.agent-message { max-width: 1240px; padding: 19px 0; }
+.agent-message.assistant { grid-template-columns: 34px minmax(0, 1fr); gap: 14px; }
+.agent-message.assistant > span:first-child { width: 32px; height: 32px; }
+.agent-message p { font-size: 16px; line-height: 1.7; }
+.agent-message.assistant > p, .agent-thinking { padding: 15px 18px; }
+.agent-message.user p { max-width: min(82%, 900px); padding: 13px 17px; }
+.agent-welcome p { font-size: 14px; line-height: 1.65; }
+.agent-suggestions { gap: 10px; }
+.agent-suggestions button { padding: 11px 14px; font-size: 13px; }
+.agent-composer { max-width: 1120px; padding: 14px; }
+.agent-composer textarea { min-height: 58px; padding: 10px 11px; font-size: 16px; line-height: 1.55; }
+.agent-composer button, .agent-bottom-controls > button { width: 44px; height: 44px; }
+.agent-bottom-controls { max-width: 1120px; }
+.agent-bottom-select > span { font-size: 11px; }
+.agent-bottom-select select { height: 44px; padding-left: 12px; font-size: 14px; }
+.agent-future-note { font-size: 10px; }
+
+/* Raise supporting dashboard copy without changing the visual hierarchy of display headings. */
+.day-summary, .mcp-page-header > div > p:last-child { font-size: 15px; }
+.panel-heading p, .panel-heading > button, .text-button, .empty-approval, .list-state { font-size: 13px; }
+.task-copy strong, .event-copy strong, .approval strong { font-size: 13px; }
+.task-copy small, .event-copy span, .approval small, .privacy-note { font-size: 12px; }
+.mcp-risk-note strong, .mcp-server-card > header strong { font-size: 14px; }
+.mcp-risk-note span, .mcp-server-card > header span, .mcp-server-actions button, .mcp-tool-row button, .mcp-tool-row > label, .mcp-no-tools, .mcp-empty { font-size: 12px; }
+.mcp-add-server summary { font-size: 13px; }
+.mcp-add-server form > label, .mcp-add-server input:not([type="checkbox"]), .mcp-add-server textarea { font-size: 13px; }
+.inbox-row strong { font-size: 14px; }
+.inbox-row button, .inbox-empty span { font-size: 12px; }

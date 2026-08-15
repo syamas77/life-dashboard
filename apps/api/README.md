@@ -4,11 +4,14 @@ Local FastAPI service backed by an embedded SQLite database.
 
 ## Local development
 
-Install the pinned Pi ACP bridge and build the MCP policy gateway once:
+Install the pinned Pi ACP bridge, MCP policy gateway, and Apple Reminders server once:
 
 ```bash
 cd ../agent
 npm install
+cd ../mcp-gateway
+npm install
+npm run build
 cd ../mcp-apple-reminders
 npm install
 npm run build
