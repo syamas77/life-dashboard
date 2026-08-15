@@ -34,9 +34,9 @@ import type { FormEvent } from "react";
 
 import { ShiningText } from "@/components/ui/shining-text";
 import { api } from "@/lib/api";
-import type { AgentConfigOption, AgentConversation, AgentEvent, AgentLedgerEntry, AgentRun, InboxItem, McpApproval, McpServer, McpTool, Task } from "@/lib/api";
+import type { AgentConfigOption, AgentConversation, AgentEvent, AgentLedgerEntry, AgentRun, InboxItem, McpApproval, McpServer, McpTool, Task, TaskStatus } from "@/lib/api";
 
-type Area = "Today" | "Inbox" | "People" | "Agent" | "World" | "Ledger" | "MCP" | "Approvals";
+type Area = "Today" | "Inbox" | "People" | "Board" | "Agent" | "World" | "Ledger" | "MCP" | "Approvals";
 type CaptureTarget = "inbox" | "task";
 type AgentMessage = { id: number; role: "user" | "assistant"; content: string };
 
@@ -44,6 +44,7 @@ const navigation = [
   { label: "Today" as Area, icon: House, count: null },
   { label: "Inbox" as Area, icon: Archive, count: null },
   { label: "People" as Area, icon: UsersThree, count: null },
+  { label: "Board" as Area, icon: ClipboardText, count: null },
   { label: "Agent" as Area, icon: Sparkle, count: null },
   { label: "World" as Area, icon: Robot, count: null },
   { label: "Ledger" as Area, icon: ClipboardText, count: null },
@@ -67,6 +68,11 @@ const areaCopy: Record<Exclude<Area, "Today" | "World" | "Ledger">, { title: str
     title: "Stay close, deliberately.",
     body: "Remember the context, promises, and small details that matter.",
     action: "Add a person",
+  },
+  Board: {
+    title: "Move work forward.",
+    body: "Keep priorities visible and move them through a simple, focused workflow.",
+    action: "Add a task",
   },
   Agent: {
     title: "Delegate with context.",
@@ -192,6 +198,8 @@ function BrandMark() {
 export default function Dashboard() {
   const [area, setArea] = useState<Area>("Today");
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [draggedTaskId, setDraggedTaskId] = useState<number | null>(null);
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [inboxItems, setInboxItems] = useState<InboxItem[]>([]);
   const [capture, setCapture] = useState("");
   const [captureTarget, setCaptureTarget] = useState<CaptureTarget>("inbox");
@@ -599,6 +607,40 @@ export default function Dashboard() {
     }
   }
 
+  async function moveTask(task: Task, status: TaskStatus) {
+    if (task.status === status) return;
+    setTasks((items) => items.map((item) => item.id === task.id ? { ...item, status, completed_at: status === "done" ? new Date().toISOString() : null } : item));
+    try {
+      const updated = await api.setTaskStatus(task.id, status);
+      setTasks((items) => items.map((item) => item.id === task.id ? updated : item));
+    } catch (error) {
+      setTasks((items) => items.map((item) => item.id === task.id ? task : item));
+      setApiError(error instanceof Error ? error.message : "The task could not be moved.");
+    }
+  }
+
+  async function deleteSelectedTask() {
+    if (!selectedTask || !window.confirm(`Delete “${selectedTask.title}”?`)) return;
+    try {
+      await api.deleteTask(selectedTask.id);
+      setTasks((items) => items.filter((item) => item.id !== selectedTask.id));
+      setSelectedTask(null);
+    } catch (error) {
+      setApiError(error instanceof Error ? error.message : "The task could not be deleted.");
+    }
+  }
+
+  async function saveTaskDetails() {
+    if (!selectedTask) return;
+    try {
+      const updated = await api.updateTask(selectedTask.id, { notes: selectedTask.notes, due_at: selectedTask.due_at });
+      setTasks((items) => items.map((item) => item.id === updated.id ? updated : item));
+      setSelectedTask(updated);
+    } catch (error) {
+      setApiError(error instanceof Error ? error.message : "The task details could not be saved.");
+    }
+  }
+
   async function toggleTask(task: Task) {
     const completed = task.completed_at === null;
     setTasks((items) => items.map((item) => item.id === task.id ? { ...item, completed_at: completed ? new Date().toISOString() : null } : item));
@@ -689,6 +731,7 @@ export default function Dashboard() {
 
   function focusCapture(target: CaptureTarget = "inbox") {
     setCaptureTarget(target);
+    if (area !== "Today") setArea("Today");
     window.requestAnimationFrame(() => document.getElementById("capture")?.focus());
   }
 
@@ -1072,6 +1115,42 @@ export default function Dashboard() {
             </details>
             <footer className="privacy-note"><ShieldCheck size={14} weight="fill" /> Read-only tools run when allowed. Write tools require approval. Tests and calls are recorded in the Ledger.</footer>
           </div>
+        ) : area === "Board" ? (
+          <div className="content board-view reveal">
+            <header className="board-page-header">
+              <div><p className="date"><ClipboardText size={15} weight="duotone" /> Task board</p><h1>Work in motion</h1><p>Move priorities through the day without losing the thread.</p></div>
+              <button className="primary-button" type="button" onClick={() => focusCapture("task")}><Plus size={16} weight="bold" /> Add task</button>
+            </header>
+            <section className="kanban-board" aria-label="Task board">
+              {([
+                ["backlog", "Backlog"],
+                ["in_progress", "In progress"],
+                ["blocked", "Blocked"],
+                ["done", "Done"],
+              ] as [TaskStatus, string][]).map(([status, label]) => {
+                const columnTasks = tasks.filter((task) => task.status === status);
+                return (
+                  <section className="kanban-column" key={status} onDragOver={(event) => event.preventDefault()} onDrop={() => {
+                    const task = tasks.find((item) => item.id === draggedTaskId);
+                    if (task) void moveTask(task, status);
+                    setDraggedTaskId(null);
+                  }}>
+                    <header><div><h2>{label}</h2><span>{columnTasks.length} {columnTasks.length === 1 ? "task" : "tasks"}</span></div><i /></header>
+                    <div className="kanban-cards">
+                      {columnTasks.map((task) => (
+                        <article className="kanban-card" key={task.id} draggable onDragStart={() => setDraggedTaskId(task.id)} onClick={() => setSelectedTask(task)}>
+                          <strong>{task.title}</strong>
+                          <span>{task.context ?? "Focus"}</span>
+                          {task.due_at ? <small>{new Intl.DateTimeFormat("en", { month: "short", day: "numeric" }).format(new Date(task.due_at))}</small> : null}
+                        </article>
+                      ))}
+                      {!columnTasks.length ? <p className="kanban-empty">Drop tasks here</p> : null}
+                    </div>
+                  </section>
+                );
+              })}
+            </section>
+          </div>
         ) : area === "Agent" ? (
           <div className="content agent-view reveal">
             <header className="agent-chat-header">
@@ -1193,6 +1272,24 @@ export default function Dashboard() {
           </div>
         )}
       </main>
+
+      {selectedTask ? (
+        <div className="task-drawer-backdrop" role="presentation" onMouseDown={() => setSelectedTask(null)}>
+          <aside className="task-drawer" role="dialog" aria-modal="true" aria-label="Task details" onMouseDown={(event) => event.stopPropagation()}>
+            <header><div><span className="drawer-eyebrow">Task details</span><h2>{selectedTask.title}</h2></div><button type="button" onClick={() => setSelectedTask(null)} aria-label="Close task details"><X size={20} weight="bold" /></button></header>
+            <div className="task-drawer-fields">
+              <label><span>Status</span><select value={selectedTask.status} onChange={(event) => {
+                const status = event.target.value as TaskStatus;
+                void moveTask(selectedTask, status).then(() => setSelectedTask((current) => current ? { ...current, status, completed_at: status === "done" ? new Date().toISOString() : null } : current));
+              }}><option value="backlog">Backlog</option><option value="in_progress">In progress</option><option value="blocked">Blocked</option><option value="done">Done</option></select></label>
+              <div><span>Context</span><strong>{selectedTask.context ?? "Focus"}</strong></div>
+              <label><span>Due date</span><input type="date" value={selectedTask.due_at ? selectedTask.due_at.slice(0, 10) : ""} onChange={(event) => setSelectedTask({ ...selectedTask, due_at: event.target.value ? `${event.target.value}T12:00:00` : null })} /></label>
+              <label className="task-drawer-notes"><span>Description</span><textarea rows={7} value={selectedTask.notes ?? ""} placeholder="Add a description" onChange={(event) => setSelectedTask({ ...selectedTask, notes: event.target.value || null })} /></label>
+              <div className="task-drawer-actions"><button className="primary-button task-save-button" type="button" onClick={() => void saveTaskDetails()}>Save details</button><button className="danger-button" type="button" onClick={() => void deleteSelectedTask()}>Delete task</button></div>
+            </div>
+          </aside>
+        </div>
+      ) : null}
 
       {paletteOpen ? (
         <div className="palette-backdrop" role="presentation" onMouseDown={() => setPaletteOpen(false)}>

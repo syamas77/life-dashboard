@@ -11,6 +11,7 @@ class TaskCreate(ApiModel):
     title: str = Field(min_length=1, max_length=300)
     notes: str | None = None
     context: str | None = Field(default=None, max_length=100)
+    status: str = Field(default="backlog", pattern="^(backlog|in_progress|blocked|done)$")
     due_at: datetime | None = None
 
 
@@ -18,6 +19,7 @@ class TaskUpdate(ApiModel):
     title: str | None = Field(default=None, min_length=1, max_length=300)
     notes: str | None = None
     context: str | None = Field(default=None, max_length=100)
+    status: str | None = Field(default=None, pattern="^(backlog|in_progress|blocked|done)$")
     due_at: datetime | None = None
     completed: bool | None = None
 
@@ -27,6 +29,7 @@ class TaskRead(ApiModel):
     title: str
     notes: str | None
     context: str | None
+    status: str
     due_at: datetime | None
     completed_at: datetime | None
     created_at: datetime

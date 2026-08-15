@@ -24,6 +24,7 @@ class Task(TimestampMixin, Base):
     title: Mapped[str] = mapped_column(String(300))
     notes: Mapped[str | None] = mapped_column(Text(), nullable=True)
     context: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    status: Mapped[str] = mapped_column(String(20), default="backlog")
     due_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 

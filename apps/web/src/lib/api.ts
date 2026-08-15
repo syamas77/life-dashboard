@@ -6,11 +6,14 @@ export type HealthStatus = {
   database: string;
 };
 
+export type TaskStatus = "backlog" | "in_progress" | "blocked" | "done";
+
 export type Task = {
   id: number;
   title: string;
   notes: string | null;
   context: string | null;
+  status: TaskStatus;
   due_at: string | null;
   completed_at: string | null;
   created_at: string;
@@ -204,6 +207,9 @@ export const api = {
   listTasks: () => request<Task[]>("/tasks"),
   createTask: (title: string) => request<Task>("/tasks", { method: "POST", body: { title, context: "Focus" } }),
   setTaskCompleted: (id: number, completed: boolean) => request<Task>(`/tasks/${id}`, { method: "PATCH", body: { completed } }),
+  setTaskStatus: (id: number, status: TaskStatus) => request<Task>(`/tasks/${id}`, { method: "PATCH", body: { status } }),
+  updateTask: (id: number, payload: { notes?: string | null; due_at?: string | null }) => request<Task>(`/tasks/${id}`, { method: "PATCH", body: payload }),
+  deleteTask: (id: number) => request<void>(`/tasks/${id}`, { method: "DELETE" }),
   listInbox: () => request<InboxItem[]>("/inbox?processed=false"),
   createInboxItem: (content: string) => request<InboxItem>("/inbox", { method: "POST", body: { content } }),
   setInboxProcessed: (id: number, processed: boolean) => request<InboxItem>(`/inbox/${id}`, { method: "PATCH", body: { processed } }),

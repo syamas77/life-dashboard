@@ -53,6 +53,9 @@ def update_task(
 
     if completed is not None:
         task.completed_at = utc_now() if completed else None
+        task.status = "done" if completed else ("backlog" if task.status == "done" else task.status)
+    elif "status" in changes:
+        task.completed_at = utc_now() if task.status == "done" else None
 
     session.commit()
     session.refresh(task)
