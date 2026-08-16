@@ -1,5 +1,6 @@
 import json
 from collections.abc import AsyncIterator
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Query, Request, Response, status
@@ -82,8 +83,22 @@ async def agent_configuration() -> AgentConfigurationRead:
 
 @router.get("/conversations", response_model=list[AgentConversationRead])
 def list_conversations(session: SessionDep) -> list[AgentConversation]:
-    statement = select(AgentConversation).order_by(AgentConversation.updated_at.desc())
+    cleanup_old_conversations(session)
+    statement = (
+        select(AgentConversation)
+        .where(AgentConversation.archived_at.is_(None))
+        .order_by(AgentConversation.updated_at.desc())
+    )
     return list(session.scalars(statement))
+
+
+@router.post("/conversations/{conversation_id}/restore", response_model=AgentConversationRead)
+def restore_conversation(conversation_id: int, session: SessionDep) -> AgentConversation:
+    conversation = find_conversation(conversation_id, session)
+    conversation.archived_at = None
+    session.commit()
+    session.refresh(conversation)
+    return conversation
 
 
 @router.post(
@@ -392,6 +407,31 @@ def record_terminal_event(
         session.commit()
     except Exception:
         session.rollback()
+
+
+def _as_utc(value: datetime) -> datetime:
+    return value.replace(tzinfo=UTC) if value.tzinfo is None else value
+
+
+def cleanup_old_conversations(session: Session) -> None:
+    now = utc_now()
+    archive_before = now - timedelta(days=30)
+    delete_before = now - timedelta(days=60)
+    candidates = list(session.scalars(select(AgentConversation)))
+    changed = False
+    for conversation in candidates:
+        if conversation.archived_at is not None and conversation.archived_at <= delete_before:
+            delete_pi_session_artifacts(conversation.acp_session_id)
+            session.delete(conversation)
+            changed = True
+        elif (
+            conversation.archived_at is None
+            and _as_utc(conversation.updated_at) <= archive_before
+        ):
+            conversation.archived_at = now
+            changed = True
+    if changed:
+        session.commit()
 
 
 def find_conversation(conversation_id: int, session: Session) -> AgentConversation:

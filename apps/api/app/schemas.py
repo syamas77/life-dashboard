@@ -88,6 +88,7 @@ class AgentConversationRead(ApiModel):
     acp_session_id: str | None
     model: str | None
     thinking_level: str | None
+    archived_at: datetime | None
     created_at: datetime
     updated_at: datetime
 
