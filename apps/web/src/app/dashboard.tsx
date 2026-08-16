@@ -49,6 +49,7 @@ function taskDescription(notes: string | null) {
 }
 
 type AgentMessage = { id: number; role: "user" | "assistant"; content: string };
+const harnessOptions = [{ value: "pi", name: "Pi", description: "Pi ACP" }, { value: "gemini", name: "Gemini CLI", description: "Gemini ACP" }];
 
 function AgentPicker({ label, value, options, disabled, onChange }: { label: string; value: string; options: AgentConfigOption["options"]; disabled?: boolean; onChange: (value: string) => void }) {
   const [open, setOpen] = useState(false);
@@ -239,6 +240,7 @@ export default function Dashboard() {
   const [agentConfig, setAgentConfig] = useState<AgentConfigOption[] | null>(null);
   const [agentConfigLoading, setAgentConfigLoading] = useState(false);
   const [agentSelections, setAgentSelections] = useState<Record<string, string>>({});
+  const [selectedHarness, setSelectedHarness] = useState("pi");
   const [agentConversations, setAgentConversations] = useState<AgentConversation[]>([]);
   const [archivedConversations, setArchivedConversations] = useState<AgentConversation[]>([]);
   const [activeConversationId, setActiveConversationId] = useState<number | null>(null);
@@ -479,6 +481,7 @@ export default function Dashboard() {
         role: message.role,
         content: message.content,
       })));
+      setSelectedHarness(conversation.harness || "pi");
       setAgentSelections((current) => ({
         ...current,
         ...(conversation.model ? { model: conversation.model } : {}),
@@ -774,6 +777,7 @@ export default function Dashboard() {
 
     try {
       await api.streamAgentPrompt(conversationId, prompt, handleEvent, {
+        harness: selectedHarness,
         model: agentSelections.model,
         thinking_level: agentSelections.thought_level,
       });
@@ -1299,6 +1303,7 @@ export default function Dashboard() {
                     {!agentConversations.length ? <p>No saved conversations</p> : null}
                   </div> : null}
                 </div>
+                <AgentPicker label="Harness" value={selectedHarness} options={harnessOptions} disabled={agentRunning} onChange={setSelectedHarness} />
                 {agentConfigLoading ? <span className="agent-config-loading">Loading Pi options</span> : agentConfig?.map((config) => (
                   <AgentPicker
                     key={config.id}

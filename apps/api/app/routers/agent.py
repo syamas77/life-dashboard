@@ -122,7 +122,7 @@ def create_conversation(
     payload: AgentConversationCreate,
     session: SessionDep,
 ) -> AgentConversation:
-    conversation = AgentConversation(title=payload.title)
+    conversation = AgentConversation(title=payload.title, harness=payload.harness)
     session.add(conversation)
     session.commit()
     session.refresh(conversation)
@@ -167,6 +167,11 @@ def prompt_agent(
     settings = get_settings()
     registry: AgentRunRegistry = request.app.state.agent_runs
     conversation = find_conversation(payload.conversation_id, session)
+    harness = payload.harness or conversation.harness or settings.agent_harness
+    if harness not in {"pi", "gemini"}:
+        raise HTTPException(status_code=422, detail="Unsupported Agent harness")
+    conversation.harness = harness
+    harness_settings = settings.model_copy(update={"agent_harness": harness})
     has_messages = (
         session.scalar(
             select(AgentMessage.id).where(AgentMessage.conversation_id == conversation.id).limit(1)
@@ -211,7 +216,7 @@ def prompt_agent(
         terminal_recorded = False
         try:
             async for event in stream_pi_prompt(
-                settings,
+                harness_settings,
                 payload.prompt,
                 model=payload.model,
                 thinking_level=payload.thinking_level,

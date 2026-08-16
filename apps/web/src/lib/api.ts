@@ -51,6 +51,7 @@ export type AgentConversation = {
   model: string | null;
   thinking_level: string | null;
   archived_at: string | null;
+  harness: string;
   created_at: string;
   updated_at: string;
 };
@@ -168,7 +169,7 @@ async function streamAgentPrompt(
   conversationId: number,
   prompt: string,
   onEvent: (event: AgentEvent) => void,
-  configuration?: { model?: string; thinking_level?: string },
+  configuration?: { model?: string; thinking_level?: string; harness?: string },
   signal?: AbortSignal,
 ): Promise<void> {
   const response = await fetch(`${API_BASE_URL}/agent/prompt`, {

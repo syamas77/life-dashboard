@@ -37,6 +37,7 @@ class AgentConversation(TimestampMixin, Base):
     acp_session_id: Mapped[str | None] = mapped_column(String(200), unique=True, nullable=True)
     model: Mapped[str | None] = mapped_column(String(300), nullable=True)
     thinking_level: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    harness: Mapped[str] = mapped_column(String(40), default="pi")
     archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     messages: Mapped[list["AgentMessage"]] = relationship(
         back_populates="conversation",

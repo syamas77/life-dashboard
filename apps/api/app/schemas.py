@@ -58,6 +58,7 @@ class AgentPrompt(ApiModel):
     prompt: str = Field(min_length=1, max_length=4000)
     model: str | None = Field(default=None, max_length=300)
     thinking_level: str | None = Field(default=None, max_length=40)
+    harness: str | None = Field(default=None, max_length=40)
 
 
 class AgentConfigChoiceRead(ApiModel):
@@ -80,6 +81,7 @@ class AgentConfigurationRead(ApiModel):
 
 class AgentConversationCreate(ApiModel):
     title: str = Field(default="New conversation", min_length=1, max_length=200)
+    harness: str = Field(default="pi", max_length=40)
 
 
 class AgentConversationRead(ApiModel):
@@ -88,6 +90,7 @@ class AgentConversationRead(ApiModel):
     acp_session_id: str | None
     model: str | None
     thinking_level: str | None
+    harness: str
     archived_at: datetime | None
     created_at: datetime
     updated_at: datetime
