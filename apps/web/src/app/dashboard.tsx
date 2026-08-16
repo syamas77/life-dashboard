@@ -216,6 +216,8 @@ export default function Dashboard() {
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [apiOnline, setApiOnline] = useState<boolean | null>(null);
+  const [lastHealthCheck, setLastHealthCheck] = useState<Date | null>(null);
+  const [healthOpen, setHealthOpen] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
   const [agentInput, setAgentInput] = useState("");
   const [agentMessages, setAgentMessages] = useState<AgentMessage[]>([]);
@@ -248,9 +250,9 @@ export default function Dashboard() {
     let active = true;
     const checkHealth = () => {
       api.getHealth().then(() => {
-        if (active) setApiOnline(true);
+        if (active) { setApiOnline(true); setLastHealthCheck(new Date()); }
       }).catch(() => {
-        if (active) setApiOnline(false);
+        if (active) { setApiOnline(false); setLastHealthCheck(new Date()); }
       });
     };
     checkHealth();
@@ -839,7 +841,10 @@ export default function Dashboard() {
             <kbd><Command size={11} weight="bold" /> K</kbd>
           </button>
           <div className="top-actions">
-            <span className={apiOnline === false ? "sync-state offline" : "sync-state"}><span /> {apiOnline === null || loading ? "Connecting" : apiOnline ? "Synced locally" : "API offline"}</span>
+            <div className="health-control">
+              <button className={apiOnline === false ? "sync-state offline" : "sync-state"} type="button" onClick={() => setHealthOpen((value) => !value)} aria-expanded={healthOpen}><span /> {apiOnline === null || loading ? "Connecting" : apiOnline ? "Synced locally" : "API offline"}</button>
+              {healthOpen ? <div className="health-popover" role="status"><strong>Dashboard health</strong><span><i className={apiOnline ? "health-dot good" : "health-dot bad"} /> API {apiOnline ? "connected" : apiOnline === false ? "offline" : "checking"}</span><small>{lastHealthCheck ? `Last checked ${lastHealthCheck.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" })}` : "Waiting for first check"}</small><small>Checks every 15 seconds</small></div> : null}
+            </div>
             <button className="icon-button" type="button" onClick={() => setDark((value) => !value)} aria-label="Toggle color theme">
               {dark ? <Sun size={18} weight="bold" /> : <Moon size={18} weight="bold" />}
             </button>

@@ -115,6 +115,16 @@ kbd { display: inline-flex; align-items: center; gap: 2px; padding: 3px 5px; bor
 .sync-state > span { width: 6px; height: 6px; border-radius: 50%; background: var(--brand); box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 14%, transparent); }
 .sync-state.offline { color: var(--danger); }
 .sync-state.offline > span { background: var(--danger); box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 14%, transparent); }
+.health-control { position: relative; }
+.health-control .sync-state { margin: 0; padding: 4px 6px; border: 0; background: transparent; cursor: pointer; }
+.health-popover { position: absolute; top: calc(100% + 10px); right: 0; z-index: 20; display: grid; gap: 9px; width: 210px; padding: 14px; border: 1px solid var(--line-strong); border-radius: 9px; background: #f7fbff; box-shadow: 0 12px 30px rgba(40,70,100,.16); color: var(--ink); }
+.app-shell.dark .health-popover { background: #172332; }
+.health-popover strong { font-size: 13px; }
+.health-popover span { display: flex; align-items: center; gap: 7px; font-size: 12px; }
+.health-popover small { color: var(--muted); font-size: 11px; }
+.health-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--brand-muted); }
+.health-dot.good { background: #5d9b71; }
+.health-dot.bad { background: var(--danger); }
 .icon-button { width: 34px; height: 34px; display: grid; place-items: center; border: 1px solid transparent; border-radius: 7px; background: transparent; color: var(--muted); cursor: pointer; position: relative; }
 .icon-button:hover { background: var(--panel); border-color: var(--line); color: var(--ink); }
 .notification > span { position: absolute; top: 7px; right: 7px; width: 5px; height: 5px; border: 1px solid var(--canvas); border-radius: 50%; background: #a45e59; }
