@@ -1,0 +1,6 @@
+#!/bin/sh
+# Gmail MCP starts both stdio and an HTTP listener; keep its optional HTTP port
+# away from the Life Dashboard frontend while using stdio through the gateway.
+export PORT="${PORT:-45877}"
+export TELEMETRY_ENABLED="false"
+exec /Users/shinchan/.nvm/versions/node/v24.13.0/bin/npx -y @shinzolabs/gmail-mcp "$@"
