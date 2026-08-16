@@ -50,6 +50,18 @@ function taskDescription(notes: string | null) {
 
 type AgentMessage = { id: number; role: "user" | "assistant"; content: string };
 
+function AgentPicker({ label, value, options, disabled, onChange }: { label: string; value: string; options: AgentConfigOption["options"]; disabled?: boolean; onChange: (value: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLLabelElement>(null);
+  useEffect(() => {
+    const close = (event: PointerEvent) => { if (ref.current && !ref.current.contains(event.target as Node)) setOpen(false); };
+    document.addEventListener("pointerdown", close);
+    return () => document.removeEventListener("pointerdown", close);
+  }, []);
+  const selected = options.find((option) => option.value === value);
+  return <label className="agent-picker" ref={ref}><span>{label}</span><button className="agent-picker-trigger" type="button" disabled={disabled} onClick={() => setOpen((current) => !current)} aria-expanded={open}><strong>{selected?.name ?? value}</strong><CaretDown size={14} weight="bold" /></button>{open ? <div className="agent-picker-popover" role="listbox">{options.map((option) => <button type="button" className={option.value === value ? "selected" : ""} key={option.value} onClick={() => { onChange(option.value); setOpen(false); }}><span>{option.name}</span>{option.value === value ? <Check size={15} weight="bold" /> : null}</button>)}</div> : null}</label>;
+}
+
 const navigation = [
   { label: "Today" as Area, icon: House, count: null },
   { label: "Inbox" as Area, icon: Archive, count: null },
@@ -1281,16 +1293,14 @@ export default function Dashboard() {
                   </div> : null}
                 </div>
                 {agentConfigLoading ? <span className="agent-config-loading">Loading Pi options</span> : agentConfig?.map((config) => (
-                  <label className="agent-bottom-select" key={config.id}>
-                    <span>{config.name}</span>
-                    <select
-                      value={agentSelections[config.id] ?? config.current_value}
-                      onChange={(event) => setAgentSelections((current) => ({ ...current, [config.id]: event.target.value }))}
-                      disabled={agentRunning}
-                    >
-                      {config.options.map((option) => <option value={option.value} key={option.value}>{option.name}</option>)}
-                    </select>
-                  </label>
+                  <AgentPicker
+                    key={config.id}
+                    label={config.name}
+                    value={agentSelections[config.id] ?? config.current_value}
+                    options={config.options}
+                    disabled={agentRunning}
+                    onChange={(value) => setAgentSelections((current) => ({ ...current, [config.id]: value }))}
+                  />
                 ))}
                 <details className="conversation-menu" ref={conversationMenuRef}>
                   <summary aria-label="Conversation actions"><DotsThreeVertical size={18} weight="bold" /></summary>
