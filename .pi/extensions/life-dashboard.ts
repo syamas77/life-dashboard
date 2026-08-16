@@ -1,5 +1,20 @@
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
+
+const execFileAsync = promisify(execFile);
+const bridgePath = process.env.LIFE_DASHBOARD_MCP_BRIDGE;
+
+async function callDashboardBridge(request: Record<string, unknown>, signal: AbortSignal) {
+  if (!bridgePath) throw new Error("Life Dashboard MCP bridge is not configured.");
+  const { stdout } = await execFileAsync(process.execPath, [bridgePath], {
+    input: JSON.stringify(request),
+    maxBuffer: 1_048_576,
+    signal,
+  });
+  return JSON.parse(stdout);
+}
 
 const apiBaseUrl = process.env.LIFE_API_INTERNAL_URL ?? "http://127.0.0.1:8000/api/v1";
 
@@ -67,19 +82,8 @@ export default function lifeDashboardExtension(pi: ExtensionAPI) {
       }),
     }),
     async execute(_toolCallId, params, signal) {
-      const response = await fetch(`${apiBaseUrl}/inbox`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: params.content.trim() }),
-        signal,
-      });
-
-      if (!response.ok) {
-        const body = await response.text();
-        throw new Error(`Life Dashboard API rejected the inbox item (${response.status}): ${body.slice(0, 500)}`);
-      }
-
-      const item = (await response.json()) as { id: number; content: string };
+      const result = await callDashboardBridge({ action: "call", tool: "inbox_create", arguments: { content: params.content.trim() } }, signal);
+      const item = JSON.parse(result.content?.[0]?.text ?? "{}");
       return {
         content: [{ type: "text", text: `Saved inbox item ${item.id}: ${item.content}` }],
         details: { itemId: item.id },
@@ -105,17 +109,8 @@ export default function lifeDashboardExtension(pi: ExtensionAPI) {
       source: Type.Optional(Type.String({ maxLength: 500, description: "Source email or message link" })),
     }),
     async execute(_toolCallId, params, signal) {
-      const response = await fetch(`${apiBaseUrl}/tasks`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: params.title.trim(), notes: [params.notes, params.source ? `Source: ${params.source}` : null].filter(Boolean).join("\n\n") || undefined, context: params.context ?? "Gmail", due_at: params.dueAt }),
-        signal,
-      });
-      if (!response.ok) {
-        const body = await response.text();
-        throw new Error(`Life Dashboard API rejected the task (${response.status}): ${body.slice(0, 500)}`);
-      }
-      const task = (await response.json()) as { id: number; title: string; status: string };
+      const result = await callDashboardBridge({ action: "call", tool: "task_create", arguments: { title: params.title.trim(), notes: [params.notes, params.source ? `Source: ${params.source}` : null].filter(Boolean).join("\n\n") || undefined, context: params.context ?? "Gmail", due_at: params.dueAt } }, signal);
+      const task = JSON.parse(result.content?.[0]?.text ?? "{}");
       return {
         content: [{ type: "text", text: `Created Board task ${task.id}: ${task.title} (${task.status})` }],
         details: { taskId: task.id, status: task.status },
@@ -144,32 +139,12 @@ export default function lifeDashboardExtension(pi: ExtensionAPI) {
     ]),
     async execute(_toolCallId, params, signal) {
       if (params.action === "list_tools") {
-        const response = await fetch(`${apiBaseUrl}/mcp/servers`, { signal });
-        if (!response.ok) throw new Error(`Could not list MCP servers (${response.status}).`);
-        const servers = (await response.json()) as Array<{
-          name: string;
-          enabled: boolean;
-          allowed_tools: string[];
-          discovered_tools: Array<{ name: string; description?: string | null; inputSchema?: Record<string, unknown> }>;
-        }>;
-        const available = servers
-          .filter((server) => server.enabled && server.allowed_tools.length > 0)
-          .map((server) => ({
-            server: server.name,
-            tools: server.discovered_tools
-              .filter((tool) => server.allowed_tools.includes(tool.name))
-              .map((tool) => ({
-                name: tool.name,
-                description: tool.description ?? null,
-                inputSchema: tool.inputSchema ?? {},
-              })),
-          }));
-        return {
-          content: [{ type: "text", text: JSON.stringify(available) }],
-          details: { servers: available },
-        };
+        const result = await callDashboardBridge({ action: "call", tool: "mcp_list_tools", arguments: {} }, signal);
+        const text = result.content?.[0]?.text ?? "[]";
+        return { content: [{ type: "text", text }], details: { servers: JSON.parse(text) } };
       }
-      return callMcpTool(params.server, params.tool, params.arguments ?? {}, signal);
+      const result = await callDashboardBridge({ action: "call", tool: "mcp_call", arguments: { server: params.server, tool: params.tool, arguments: params.arguments ?? {} } }, signal);
+      return { content: [{ type: "text", text: result.content?.[0]?.text ?? JSON.stringify(result) }], details: result };
     },
   });
 }
