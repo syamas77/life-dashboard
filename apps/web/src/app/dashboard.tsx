@@ -1247,7 +1247,7 @@ export default function Dashboard() {
             <header className="agent-chat-header">
               <div className="agent-chat-identity">
                 <div><Sparkle size={18} weight="fill" /></div>
-                <span><strong>Agent</strong><small>Pi connected through ACP</small></span>
+                <span><strong>Agent</strong><small>{selectedHarness === "gemini" ? "Gemini CLI connected through ACP" : "Pi connected through ACP"}</small></span>
               </div>
               <div className="agent-header-tools">
                 <span className="agent-current-scope"><LockKey size={12} weight="fill" /> {selectedHarness === "gemini" ? "Gemini CLI" : "Pi"} · MCP writes need approval</span>
