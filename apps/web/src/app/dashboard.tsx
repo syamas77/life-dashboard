@@ -243,6 +243,7 @@ export default function Dashboard() {
   const [approvals, setApprovals] = useState(["Send follow-up to Maya", "Create calendar hold"]);
   const agentMessagesEndRef = useRef<HTMLDivElement>(null);
   const conversationMenuRef = useRef<HTMLDetailsElement>(null);
+  const healthControlRef = useRef<HTMLDivElement>(null);
   const mcpApprovalSignatureRef = useRef("");
   const agentAutoScrollRef = useRef(true);
 
@@ -256,7 +257,7 @@ export default function Dashboard() {
       });
     };
     checkHealth();
-    const interval = window.setInterval(checkHealth, 15000);
+    const interval = window.setInterval(checkHealth, 30000);
     return () => { active = false; window.clearInterval(interval); };
   }, []);
 
@@ -408,13 +409,16 @@ export default function Dashboard() {
   }, [area, agentMessages, agentActivity, mcpApprovals]);
 
   useEffect(() => {
-    const closeConversationMenu = (event: PointerEvent) => {
+    const closeMenus = (event: PointerEvent) => {
       if (conversationMenuRef.current && !conversationMenuRef.current.contains(event.target as Node)) {
         conversationMenuRef.current.open = false;
       }
+      if (healthControlRef.current && !healthControlRef.current.contains(event.target as Node)) {
+        setHealthOpen(false);
+      }
     };
-    document.addEventListener("pointerdown", closeConversationMenu);
-    return () => document.removeEventListener("pointerdown", closeConversationMenu);
+    document.addEventListener("pointerdown", closeMenus);
+    return () => document.removeEventListener("pointerdown", closeMenus);
   }, []);
 
   useEffect(() => {
@@ -841,9 +845,9 @@ export default function Dashboard() {
             <kbd><Command size={11} weight="bold" /> K</kbd>
           </button>
           <div className="top-actions">
-            <div className="health-control">
+            <div className="health-control" ref={healthControlRef}>
               <button className={apiOnline === false ? "sync-state offline" : "sync-state"} type="button" onClick={() => setHealthOpen((value) => !value)} aria-expanded={healthOpen}><span /> {apiOnline === null || loading ? "Connecting" : apiOnline ? "Synced locally" : "API offline"}</button>
-              {healthOpen ? <div className="health-popover" role="status"><strong>Dashboard health</strong><span><i className={apiOnline ? "health-dot good" : "health-dot bad"} /> API {apiOnline ? "connected" : apiOnline === false ? "offline" : "checking"}</span><small>{lastHealthCheck ? `Last checked ${lastHealthCheck.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" })}` : "Waiting for first check"}</small><small>Checks every 15 seconds</small></div> : null}
+              {healthOpen ? <div className="health-popover" role="status"><strong>Dashboard health</strong><span><i className={apiOnline ? "health-dot good" : "health-dot bad"} /> API {apiOnline ? "connected" : apiOnline === false ? "offline" : "checking"}</span><small>{lastHealthCheck ? `Last checked ${lastHealthCheck.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" })}` : "Waiting for first check"}</small><small>Checks every 30 seconds</small></div> : null}
             </div>
             <button className="icon-button" type="button" onClick={() => setDark((value) => !value)} aria-label="Toggle color theme">
               {dark ? <Sun size={18} weight="bold" /> : <Moon size={18} weight="bold" />}
