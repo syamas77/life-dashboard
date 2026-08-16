@@ -92,7 +92,7 @@ The shared Dashboard MCP server lives in `apps/mcp-life-dashboard`. Build it wit
 
 ```text
 Command: /absolute/path/to/node
-Arguments: /absolute/path/to/apps/mcp-life-dashboard/dist/src/index.js
+Arguments: /absolute/path/to/apps/mcp-life-dashboard/dist/index.js
 ```
 
 It exposes `inbox_create`, `task_create`, `mcp_list_tools`, and `mcp_call` to any MCP-capable harness. Connected MCP writes still pass through the FastAPI approval gateway. The Pi extension remains a compatibility path while other harnesses adopt this server.

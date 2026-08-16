@@ -2,7 +2,7 @@
 set -eu
 
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)
-export LIFE_DASHBOARD_MCP_BRIDGE="$ROOT/apps/mcp-life-dashboard/dist/src/bridge-cli.js"
+export LIFE_DASHBOARD_MCP_BRIDGE="$ROOT/apps/mcp-life-dashboard/dist/bridge-cli.js"
 
 exec pi \
   --approve \
