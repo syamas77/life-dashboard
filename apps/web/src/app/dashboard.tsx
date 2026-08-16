@@ -384,10 +384,6 @@ export default function Dashboard() {
     const approvalChanged = approvalSignature !== mcpApprovalSignatureRef.current;
     mcpApprovalSignatureRef.current = approvalSignature;
     const end = agentMessagesEndRef.current;
-    const container = end?.parentElement;
-    const distanceFromBottom = container
-      ? container.scrollHeight - container.scrollTop - container.clientHeight
-      : 0;
     if (!approvalChanged && !agentAutoScrollRef.current) return;
     end?.scrollIntoView({
       behavior: reduceMotion ? "auto" : "smooth",
