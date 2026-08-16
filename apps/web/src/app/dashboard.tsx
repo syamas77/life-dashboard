@@ -412,16 +412,23 @@ export default function Dashboard() {
   useEffect(() => {
     if (area !== "Agent") return;
     const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const approvalSignature = mcpApprovals.map((approval) => approval.id).join(",");
-    const approvalChanged = approvalSignature !== mcpApprovalSignatureRef.current;
-    mcpApprovalSignatureRef.current = approvalSignature;
-    const end = agentMessagesEndRef.current;
-    if (!approvalChanged && !agentAutoScrollRef.current) return;
-    end?.scrollIntoView({
+    if (!agentAutoScrollRef.current) return;
+    agentMessagesEndRef.current?.scrollIntoView({
       behavior: reduceMotion ? "auto" : "smooth",
       block: "end",
     });
-  }, [area, agentMessages, agentActivity, mcpApprovals]);
+  }, [area, agentMessages, agentActivity]);
+
+  useEffect(() => {
+    if (area !== "Agent") return;
+    const approvalSignature = mcpApprovals.map((approval) => approval.id).join(",");
+    if (approvalSignature === mcpApprovalSignatureRef.current) return;
+    mcpApprovalSignatureRef.current = approvalSignature;
+    agentMessagesEndRef.current?.scrollIntoView({
+      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+      block: "end",
+    });
+  }, [area, mcpApprovals]);
 
   useEffect(() => {
     const closeMenus = (event: PointerEvent) => {
