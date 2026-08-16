@@ -219,6 +219,9 @@ h1 { margin: 0; font-size: clamp(34px, 4vw, 50px); line-height: 1; letter-spacin
 .agent-chat-identity > span, .agent-chat-identity strong, .agent-chat-identity small { display: block; }
 .agent-chat-identity strong { font-size: 13px; }
 .agent-chat-identity small { margin-top: 3px; color: var(--faint); font-size: 8.5px; }
+.agent-header-tools { display: flex; align-items: end; gap: 16px; }
+.agent-header-tools .agent-picker { min-width: 180px; }
+.agent-header-tools .agent-picker-trigger { height: 36px; }
 .agent-current-scope { display: flex; align-items: center; gap: 5px; color: var(--faint); font: 540 8px/1 var(--font-geist-mono), monospace; }
 .agent-config-loading { align-self: center; color: var(--muted); font: 600 9px/1 var(--font-geist-mono), monospace; text-transform: uppercase; letter-spacing: .07em; }
 .world-view { max-width: 1040px; }
@@ -555,6 +558,13 @@ h1 { margin: 0; font-size: clamp(34px, 4vw, 50px); line-height: 1; letter-spacin
   .area-preview { margin-top: 34px; }
 }
 
+@media (max-width: 760px) {
+  .agent-chat-header { align-items: flex-start; flex-direction: column; }
+  .agent-header-tools { width: 100%; align-items: flex-start; flex-direction: column; gap: 10px; }
+  .agent-header-tools .agent-picker { width: min(100%, 280px); }
+  .agent-header-tools .agent-current-scope { padding-bottom: 0; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
@@ -565,6 +575,7 @@ h1 { margin: 0; font-size: clamp(34px, 4vw, 50px); line-height: 1; letter-spacin
 .agent-chat-identity strong { font-size: 16px; }
 .agent-chat-identity small { font-size: 11px; }
 .agent-current-scope, .agent-config-loading { font-size: 11px; }
+.agent-header-tools .agent-current-scope { padding-bottom: 8px; }
 .agent-messages { max-width: 1320px; margin-inline: auto; padding: 30px 34px; }
 .agent-message { max-width: 1240px; padding: 19px 0; }
 .agent-message.assistant { grid-template-columns: 34px minmax(0, 1fr); gap: 14px; }

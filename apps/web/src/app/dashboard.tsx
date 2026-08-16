@@ -1235,7 +1235,10 @@ export default function Dashboard() {
                 <div><Sparkle size={18} weight="fill" /></div>
                 <span><strong>Agent</strong><small>Pi connected through ACP</small></span>
               </div>
-              <span className="agent-current-scope"><LockKey size={12} weight="fill" /> Read-only MCP · writes need approval</span>
+              <div className="agent-header-tools">
+                <AgentPicker label="Harness" value={selectedHarness} options={harnessOptions} disabled={agentRunning} onChange={setSelectedHarness} />
+                <span className="agent-current-scope"><LockKey size={12} weight="fill" /> {selectedHarness === "gemini" ? "Gemini CLI" : "Pi"} · MCP writes need approval</span>
+              </div>
             </header>
 
             <section className="agent-console">
@@ -1303,7 +1306,6 @@ export default function Dashboard() {
                     {!agentConversations.length ? <p>No saved conversations</p> : null}
                   </div> : null}
                 </div>
-                <AgentPicker label="Harness" value={selectedHarness} options={harnessOptions} disabled={agentRunning} onChange={setSelectedHarness} />
                 {agentConfigLoading ? <span className="agent-config-loading">Loading Pi options</span> : agentConfig?.map((config) => (
                   <AgentPicker
                     key={config.id}
@@ -1329,7 +1331,7 @@ export default function Dashboard() {
               </div>
             </section>
 
-            <p className="agent-future-note"><ShieldCheck size={13} weight="fill" /> Pi is connected today. The ACP boundary is ready for additional agent harnesses in the future.</p>
+            <p className="agent-future-note"><ShieldCheck size={13} weight="fill" /> {selectedHarness === "gemini" ? "Gemini CLI" : "Pi"} is connected through ACP. MCP writes always require approval.</p>
           </div>
         ) : (
           <div className="content area-view reveal">
