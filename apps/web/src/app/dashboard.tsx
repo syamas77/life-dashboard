@@ -218,6 +218,7 @@ export default function Dashboard() {
   const [apiOnline, setApiOnline] = useState<boolean | null>(null);
   const [lastHealthCheck, setLastHealthCheck] = useState<Date | null>(null);
   const [healthOpen, setHealthOpen] = useState(false);
+  const [conversationPickerOpen, setConversationPickerOpen] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
   const [agentInput, setAgentInput] = useState("");
   const [agentMessages, setAgentMessages] = useState<AgentMessage[]>([]);
@@ -245,6 +246,7 @@ export default function Dashboard() {
   const agentMessagesEndRef = useRef<HTMLDivElement>(null);
   const conversationMenuRef = useRef<HTMLDetailsElement>(null);
   const healthControlRef = useRef<HTMLDivElement>(null);
+  const conversationPickerRef = useRef<HTMLDivElement>(null);
   const mcpApprovalSignatureRef = useRef("");
   const agentAutoScrollRef = useRef(true);
 
@@ -416,6 +418,9 @@ export default function Dashboard() {
       }
       if (healthControlRef.current && !healthControlRef.current.contains(event.target as Node)) {
         setHealthOpen(false);
+      }
+      if (conversationPickerRef.current && !conversationPickerRef.current.contains(event.target as Node)) {
+        setConversationPickerOpen(false);
       }
     };
     document.addEventListener("pointerdown", closeMenus);
@@ -1265,20 +1270,16 @@ export default function Dashboard() {
                 <button type="submit" disabled={agentRunning || !agentInput.trim()} aria-label="Send message"><ArrowRight size={18} weight="bold" /></button>
               </form>
               <div className="agent-bottom-controls">
-                <label className="agent-bottom-select conversation-select">
+                <div className="conversation-picker" ref={conversationPickerRef}>
                   <span>Conversation</span>
-                  <select
-                    value={activeConversationId ?? ""}
-                    onChange={(event) => {
-                      const conversation = agentConversations.find((item) => item.id === Number(event.target.value));
-                      if (conversation) void openAgentConversation(conversation);
-                    }}
-                    disabled={agentRunning || agentConfigLoading}
-                  >
-                    {!agentConversations.length ? <option value="">No saved conversations</option> : null}
-                    {agentConversations.map((conversation) => <option value={conversation.id} key={conversation.id}>{conversation.title}</option>)}
-                  </select>
-                </label>
+                  <button className="conversation-picker-trigger" type="button" onClick={() => setConversationPickerOpen((value) => !value)} disabled={agentRunning || agentConfigLoading} aria-expanded={conversationPickerOpen}>
+                    <strong>{agentConversations.find((conversation) => conversation.id === activeConversationId)?.title ?? "No saved conversation"}</strong><CaretDown size={14} weight="bold" />
+                  </button>
+                  {conversationPickerOpen ? <div className="conversation-picker-popover" role="listbox" aria-label="Saved conversations">
+                    {agentConversations.map((conversation) => <button className={conversation.id === activeConversationId ? "selected" : ""} type="button" key={conversation.id} onClick={() => { void openAgentConversation(conversation); setConversationPickerOpen(false); }}><span>{conversation.title}</span>{conversation.id === activeConversationId ? <Check size={15} weight="bold" /> : null}</button>)}
+                    {!agentConversations.length ? <p>No saved conversations</p> : null}
+                  </div> : null}
+                </div>
                 {agentConfigLoading ? <span className="agent-config-loading">Loading Pi options</span> : agentConfig?.map((config) => (
                   <label className="agent-bottom-select" key={config.id}>
                     <span>{config.name}</span>

@@ -346,8 +346,17 @@ h1 { margin: 0; font-size: clamp(34px, 4vw, 50px); line-height: 1; letter-spacin
 .agent-bottom-select select { width: 100%; min-width: 0; height: 37px; padding: 0 30px 0 10px; border: 1px solid var(--line-strong); border-radius: 7px; background: color-mix(in srgb, var(--panel) 78%, transparent); color: var(--ink); font-size: 11.5px; font-weight: 520; outline: none; }
 .agent-bottom-select select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .agent-bottom-select select:disabled { opacity: .5; cursor: wait; }
-.conversation-select { width: 100%; }
-.conversation-select select { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.conversation-picker { position: relative; min-width: 0; display: grid; gap: 5px; }
+.conversation-picker > span { color: var(--muted); font: 650 9px/1 var(--font-geist-mono), monospace; letter-spacing: .065em; text-transform: uppercase; }
+.conversation-picker-trigger { width: 100%; min-width: 0; height: 37px; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 10px; border: 1px solid var(--line-strong); border-radius: 7px; background: color-mix(in srgb, var(--panel) 78%, transparent); color: var(--ink); cursor: pointer; text-align: left; }
+.conversation-picker-trigger strong { overflow: hidden; font-size: 11.5px; font-weight: 520; text-overflow: ellipsis; white-space: nowrap; }
+.conversation-picker-trigger:disabled { opacity: .5; cursor: wait; }
+.conversation-picker-popover { position: absolute; left: 0; right: 0; bottom: calc(100% + 8px); z-index: 8; max-height: 280px; overflow-y: auto; display: grid; gap: 3px; padding: 6px; border: 1px solid var(--line-strong); border-radius: 9px; background: #f7fbff; box-shadow: 0 14px 34px rgba(35,55,76,.2); }
+.app-shell.dark .conversation-picker-popover { background: #172332; }
+.conversation-picker-popover button { width: 100%; min-height: 36px; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 9px; border: 0; border-radius: 6px; background: transparent; color: var(--ink); cursor: pointer; text-align: left; font-size: 12px; }
+.conversation-picker-popover button:hover, .conversation-picker-popover button.selected { background: var(--panel-soft); }
+.conversation-picker-popover button span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.conversation-picker-popover p { margin: 9px; color: var(--muted); font-size: 12px; }
 .agent-bottom-controls > button { width: 37px; height: 37px; display: grid; place-items: center; border: 1px solid var(--line-strong); border-radius: 7px; background: color-mix(in srgb, var(--panel) 72%, transparent); color: var(--ink); cursor: pointer; }
 .agent-bottom-controls > button:hover { background: var(--panel-soft); color: var(--ink); }
 .agent-bottom-controls > button:disabled { opacity: .45; cursor: wait; }
