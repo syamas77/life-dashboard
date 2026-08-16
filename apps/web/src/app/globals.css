@@ -367,8 +367,7 @@ h1 { margin: 0; font-size: clamp(34px, 4vw, 50px); line-height: 1; letter-spacin
 .agent-picker-popover button { width: 100%; min-height: 36px; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 9px; border: 0; border-radius: 6px; background: transparent; color: var(--ink); cursor: pointer; text-align: left; font-size: 12px; }
 .agent-picker-popover button:hover, .agent-picker-popover button.selected { background: var(--panel-soft); }
 .agent-picker-popover button span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.main:has(.agent-view) { height: 100dvh; overflow: hidden; }
-.agent-view { max-height: calc(100dvh - 64px); overflow: hidden; }
+.agent-messages { overscroll-behavior: contain; }
 .agent-bottom-controls > button { width: 37px; height: 37px; display: grid; place-items: center; border: 1px solid var(--line-strong); border-radius: 7px; background: color-mix(in srgb, var(--panel) 72%, transparent); color: var(--ink); cursor: pointer; }
 .agent-bottom-controls > button:hover { background: var(--panel-soft); color: var(--ink); }
 .agent-bottom-controls > button:disabled { opacity: .45; cursor: wait; }
