@@ -3,4 +3,5 @@
 # away from the Life Dashboard frontend while using stdio through the gateway.
 export PORT="${PORT:-45877}"
 export TELEMETRY_ENABLED="false"
-exec /Users/shinchan/.nvm/versions/node/v24.13.0/bin/npx -y @shinzolabs/gmail-mcp "$@"
+NPX_BIN=$(command -v npx) || { echo "npx is required for Gmail MCP" >&2; exit 1; }
+exec "$NPX_BIN" -y @shinzolabs/gmail-mcp "$@"

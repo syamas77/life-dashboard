@@ -595,6 +595,8 @@ h1 { margin: 0; font-size: clamp(34px, 4vw, 50px); line-height: 1; letter-spacin
 .danger-button:hover { background: color-mix(in srgb, var(--danger) 8%, transparent); }
 .task-drawer-fields strong { font-size: 16px; font-weight: 560; }
 .task-drawer-notes p { margin: 0; color: var(--muted); font-size: 16px; line-height: 1.65; white-space: pre-wrap; }
+.task-source-link { display: inline-flex; align-items: center; gap: 7px; width: fit-content; color: var(--brand); font-size: 13px; font-weight: 650; text-decoration: none; }
+.task-source-link:hover { text-decoration: underline; }
 @keyframes drawer-in { from { opacity: 0; transform: translateX(24px); } to { opacity: 1; transform: translateX(0); } }
 @media (max-width: 900px) {
   .board-page-header { align-items: flex-start; flex-direction: column; }

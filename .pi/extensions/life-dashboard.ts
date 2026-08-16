@@ -88,8 +88,44 @@ export default function lifeDashboardExtension(pi: ExtensionAPI) {
   });
 
   pi.registerTool({
-    name: "mcp",
-    label: "MCP",
+    name: "task_create",
+    label: "Create Task",
+    description: "Create an actionable task on the Life Dashboard Board.",
+    promptSnippet: "Create a task on the Life Dashboard Board",
+    promptGuidelines: [
+      "Use task_create when the user explicitly asks to turn information into an actionable task.",
+      "Keep the title concise and put useful source context in notes. When creating from Gmail, include the sender, subject, and message link in the source field when available.",
+      "Do not create a task speculatively or duplicate an existing task.",
+    ],
+    parameters: Type.Object({
+      title: Type.String({ minLength: 1, maxLength: 300 }),
+      notes: Type.Optional(Type.String({ maxLength: 5000 })),
+      context: Type.Optional(Type.String({ maxLength: 100 })),
+      dueAt: Type.Optional(Type.String({ description: "ISO date-time when the task is due" })),
+      source: Type.Optional(Type.String({ maxLength: 500, description: "Source email or message link" })),
+    }),
+    async execute(_toolCallId, params, signal) {
+      const response = await fetch(`${apiBaseUrl}/tasks`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: params.title.trim(), notes: [params.notes, params.source ? `Source: ${params.source}` : null].filter(Boolean).join("\n\n") || undefined, context: params.context ?? "Gmail", due_at: params.dueAt }),
+        signal,
+      });
+      if (!response.ok) {
+        const body = await response.text();
+        throw new Error(`Life Dashboard API rejected the task (${response.status}): ${body.slice(0, 500)}`);
+      }
+      const task = (await response.json()) as { id: number; title: string; status: string };
+      return {
+        content: [{ type: "text", text: `Created Board task ${task.id}: ${task.title} (${task.status})` }],
+        details: { taskId: task.id, status: task.status },
+      };
+    },
+  });
+
+  pi.registerTool({
+    name: "life_mcp",
+    label: "Life Dashboard MCP",
     description: "Discover and call enabled, explicitly approved MCP tools through the Life Dashboard policy gateway. Only read-only, non-destructive tools are available.",
     promptSnippet: "Use an approved Life Dashboard MCP tool",
     promptGuidelines: [

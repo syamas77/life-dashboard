@@ -3,6 +3,7 @@
 import {
   Archive,
   ArrowRight,
+  ArrowUpRight,
   Bell,
   Brain,
   CalendarBlank,
@@ -38,6 +39,15 @@ import type { AgentConfigOption, AgentConversation, AgentEvent, AgentLedgerEntry
 
 type Area = "Today" | "Inbox" | "People" | "Board" | "Agent" | "World" | "Ledger" | "MCP" | "Approvals";
 type CaptureTarget = "inbox" | "task";
+
+function taskSource(notes: string | null) {
+  return notes?.match(/(?:^|\n\n)Source:\s*(https?:\/\/\S+)/)?.[1] ?? null;
+}
+
+function taskDescription(notes: string | null) {
+  return notes?.replace(/(?:^|\n\n)Source:\s*https?:\/\/\S+/, "").trim() ?? "";
+}
+
 type AgentMessage = { id: number; role: "user" | "assistant"; content: string };
 
 const navigation = [
@@ -232,6 +242,7 @@ export default function Dashboard() {
   const agentMessagesEndRef = useRef<HTMLDivElement>(null);
   const conversationMenuRef = useRef<HTMLDetailsElement>(null);
   const mcpApprovalSignatureRef = useRef("");
+  const agentAutoScrollRef = useRef(true);
 
   useEffect(() => {
     let active = true;
@@ -298,6 +309,15 @@ export default function Dashboard() {
       window.clearInterval(interval);
     };
   }, []);
+
+  useEffect(() => {
+    if (area !== "Board" && area !== "Today") return;
+    let active = true;
+    api.listTasks().then((taskData) => {
+      if (active) setTasks(taskData);
+    }).catch(() => undefined);
+    return () => { active = false; };
+  }, [area]);
 
   useEffect(() => {
     if (area !== "Ledger") return;
@@ -368,7 +388,7 @@ export default function Dashboard() {
     const distanceFromBottom = container
       ? container.scrollHeight - container.scrollTop - container.clientHeight
       : 0;
-    if (!approvalChanged && distanceFromBottom > 180) return;
+    if (!approvalChanged && !agentAutoScrollRef.current) return;
     end?.scrollIntoView({
       behavior: reduceMotion ? "auto" : "smooth",
       block: "end",
@@ -668,6 +688,7 @@ export default function Dashboard() {
     const prompt = agentInput.trim();
     if (!prompt || agentRunning) return;
 
+    agentAutoScrollRef.current = true;
     setAgentRunning(true);
     setAgentActivity("Connecting to Pi");
     setApiError(null);
@@ -1162,7 +1183,10 @@ export default function Dashboard() {
             </header>
 
             <section className="agent-console">
-              <div className="agent-messages" aria-live="polite">
+              <div className="agent-messages" aria-live="polite" onScroll={(event) => {
+                const container = event.currentTarget;
+                agentAutoScrollRef.current = container.scrollHeight - container.scrollTop - container.clientHeight < 180;
+              }}>
                 {agentMessages.length ? agentMessages.map((message) => (
                   <div className={`agent-message ${message.role}${message.role === "assistant" && !message.content && agentRunning ? " pending" : ""}`} key={message.id}>
                     <span>{message.role === "assistant" ? <Sparkle size={15} weight="fill" /> : "You"}</span>
@@ -1284,7 +1308,8 @@ export default function Dashboard() {
               }}><option value="backlog">Backlog</option><option value="in_progress">In progress</option><option value="blocked">Blocked</option><option value="done">Done</option></select></label>
               <div><span>Context</span><strong>{selectedTask.context ?? "Focus"}</strong></div>
               <label><span>Due date</span><input type="date" value={selectedTask.due_at ? selectedTask.due_at.slice(0, 10) : ""} onChange={(event) => setSelectedTask({ ...selectedTask, due_at: event.target.value ? `${event.target.value}T12:00:00` : null })} /></label>
-              <label className="task-drawer-notes"><span>Description</span><textarea rows={7} value={selectedTask.notes ?? ""} placeholder="Add a description" onChange={(event) => setSelectedTask({ ...selectedTask, notes: event.target.value || null })} /></label>
+              <label className="task-drawer-notes"><span>Description</span><textarea rows={7} value={taskDescription(selectedTask.notes)} placeholder="Add a description" onChange={(event) => { const source = taskSource(selectedTask.notes); setSelectedTask({ ...selectedTask, notes: [event.target.value.trim(), source ? `Source: ${source}` : null].filter(Boolean).join("\n\n") || null }); }} /></label>
+              {taskSource(selectedTask.notes) ? <a className="task-source-link" href={taskSource(selectedTask.notes) ?? "#"} target="_blank" rel="noreferrer">Open email <ArrowUpRight size={14} weight="bold" /></a> : null}
               <div className="task-drawer-actions"><button className="primary-button task-save-button" type="button" onClick={() => void saveTaskDetails()}>Save details</button><button className="danger-button" type="button" onClick={() => void deleteSelectedTask()}>Delete task</button></div>
             </div>
           </aside>

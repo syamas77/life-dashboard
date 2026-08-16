@@ -54,6 +54,32 @@ def test_task_lifecycle(tmp_path: Path) -> None:
         assert client.get(f"/api/v1/tasks/{task_id}").status_code == 404
 
 
+def test_task_board_status_and_details(tmp_path: Path) -> None:
+    with make_client(tmp_path) as client:
+        Base.metadata.create_all(client.app.state.engine)
+        created = client.post(
+            "/api/v1/tasks",
+            json={
+                "title": "Review email",
+                "notes": "Source: https://mail.google.com/mail/u/0/#all/abc",
+                "due_at": "2026-08-20T12:00:00Z",
+            },
+        )
+        task_id = created.json()["id"]
+        assert created.json()["status"] == "backlog"
+        assert created.json()["notes"].startswith("Source:")
+
+        moved = client.patch(f"/api/v1/tasks/{task_id}", json={"status": "in_progress"})
+        assert moved.status_code == 200
+        assert moved.json()["status"] == "in_progress"
+        assert moved.json()["completed_at"] is None
+
+        completed = client.patch(f"/api/v1/tasks/{task_id}", json={"status": "done"})
+        assert completed.status_code == 200
+        assert completed.json()["status"] == "done"
+        assert completed.json()["completed_at"] is not None
+
+
 def test_agent_status_reports_pinned_adapter(tmp_path: Path) -> None:
     with make_client(tmp_path) as client:
         Base.metadata.create_all(client.app.state.engine)
