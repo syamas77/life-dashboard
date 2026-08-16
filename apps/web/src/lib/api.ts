@@ -215,7 +215,7 @@ export const api = {
   listInbox: () => request<InboxItem[]>("/inbox?processed=false"),
   createInboxItem: (content: string) => request<InboxItem>("/inbox", { method: "POST", body: { content } }),
   setInboxProcessed: (id: number, processed: boolean) => request<InboxItem>(`/inbox/${id}`, { method: "PATCH", body: { processed } }),
-  getAgentConfiguration: () => request<AgentConfiguration>("/agent/configuration"),
+  getAgentConfiguration: (harness?: string) => request<AgentConfiguration>(`/agent/configuration${harness ? `?harness=${encodeURIComponent(harness)}` : ""}`),
   listAgentRuns: () => request<AgentRun[]>("/agent/runs"),
   listAgentLedger: () => request<AgentLedgerEntry[]>("/agent/ledger"),
   listAgentConversations: (includeArchived = false) => request<AgentConversation[]>(`/agent/conversations${includeArchived ? "?include_archived=true" : ""}`),

@@ -470,6 +470,20 @@ export default function Dashboard() {
     [],
   );
 
+  async function changeHarness(harness: string) {
+    setSelectedHarness(harness);
+    setAgentConfigLoading(true);
+    try {
+      const configuration = await api.getAgentConfiguration(harness);
+      setAgentConfig(configuration.options);
+      setAgentSelections(Object.fromEntries(configuration.options.map((option) => [option.id, option.current_value])));
+    } catch (error) {
+      setApiError(error instanceof Error ? error.message : "The harness configuration could not be loaded.");
+    } finally {
+      setAgentConfigLoading(false);
+    }
+  }
+
   async function openAgentConversation(conversation: AgentConversation) {
     if (agentRunning) return;
     setActiveConversationId(conversation.id);
@@ -1236,7 +1250,6 @@ export default function Dashboard() {
                 <span><strong>Agent</strong><small>Pi connected through ACP</small></span>
               </div>
               <div className="agent-header-tools">
-                <AgentPicker label="Harness" value={selectedHarness} options={harnessOptions} disabled={agentRunning} onChange={setSelectedHarness} />
                 <span className="agent-current-scope"><LockKey size={12} weight="fill" /> {selectedHarness === "gemini" ? "Gemini CLI" : "Pi"} · MCP writes need approval</span>
               </div>
             </header>
@@ -1306,7 +1319,8 @@ export default function Dashboard() {
                     {!agentConversations.length ? <p>No saved conversations</p> : null}
                   </div> : null}
                 </div>
-                {agentConfigLoading ? <span className="agent-config-loading">Loading Pi options</span> : agentConfig?.map((config) => (
+                <AgentPicker label="Harness" value={selectedHarness} options={harnessOptions} disabled={agentRunning} onChange={(value) => void changeHarness(value)} />
+                {agentConfigLoading ? <span className="agent-config-loading">Loading harness options</span> : agentConfig?.map((config) => (
                   <AgentPicker
                     key={config.id}
                     label={config.name}

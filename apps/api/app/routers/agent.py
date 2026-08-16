@@ -79,8 +79,10 @@ def list_agent_ledger(
 
 
 @router.get("/configuration", response_model=AgentConfigurationRead)
-async def agent_configuration() -> AgentConfigurationRead:
+async def agent_configuration(harness: str | None = Query(None)) -> AgentConfigurationRead:
     settings = get_settings()
+    if harness in {"pi", "gemini"}:
+        settings = settings.model_copy(update={"agent_harness": harness})
     try:
         configuration = await get_pi_configuration(settings)
     except TimeoutError as error:
