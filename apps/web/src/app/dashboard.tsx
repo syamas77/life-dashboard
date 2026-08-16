@@ -246,6 +246,20 @@ export default function Dashboard() {
 
   useEffect(() => {
     let active = true;
+    const checkHealth = () => {
+      api.getHealth().then(() => {
+        if (active) setApiOnline(true);
+      }).catch(() => {
+        if (active) setApiOnline(false);
+      });
+    };
+    checkHealth();
+    const interval = window.setInterval(checkHealth, 15000);
+    return () => { active = false; window.clearInterval(interval); };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
     Promise.all([api.listTasks(), api.listInbox()])
       .then(([taskData, inboxData]) => {
         if (!active) return;
