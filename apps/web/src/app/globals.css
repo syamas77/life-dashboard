@@ -346,6 +346,8 @@ h1 { margin: 0; font-size: clamp(34px, 4vw, 50px); line-height: 1; letter-spacin
 .agent-bottom-select select { width: 100%; min-width: 0; height: 37px; padding: 0 30px 0 10px; border: 1px solid var(--line-strong); border-radius: 7px; background: color-mix(in srgb, var(--panel) 78%, transparent); color: var(--ink); font-size: 11.5px; font-weight: 520; outline: none; }
 .agent-bottom-select select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .agent-bottom-select select:disabled { opacity: .5; cursor: wait; }
+.conversation-select { width: 100%; }
+.conversation-select select { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .agent-bottom-controls > button { width: 37px; height: 37px; display: grid; place-items: center; border: 1px solid var(--line-strong); border-radius: 7px; background: color-mix(in srgb, var(--panel) 72%, transparent); color: var(--ink); cursor: pointer; }
 .agent-bottom-controls > button:hover { background: var(--panel-soft); color: var(--ink); }
 .agent-bottom-controls > button:disabled { opacity: .45; cursor: wait; }

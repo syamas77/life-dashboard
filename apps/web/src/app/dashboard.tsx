@@ -1265,10 +1265,20 @@ export default function Dashboard() {
                 <button type="submit" disabled={agentRunning || !agentInput.trim()} aria-label="Send message"><ArrowRight size={18} weight="bold" /></button>
               </form>
               <div className="agent-bottom-controls">
-                <div className="agent-current-conversation">
+                <label className="agent-bottom-select conversation-select">
                   <span>Conversation</span>
-                  <strong>{agentConversations.find((conversation) => conversation.id === activeConversationId)?.title ?? "No saved conversation"}</strong>
-                </div>
+                  <select
+                    value={activeConversationId ?? ""}
+                    onChange={(event) => {
+                      const conversation = agentConversations.find((item) => item.id === Number(event.target.value));
+                      if (conversation) void openAgentConversation(conversation);
+                    }}
+                    disabled={agentRunning || agentConfigLoading}
+                  >
+                    {!agentConversations.length ? <option value="">No saved conversations</option> : null}
+                    {agentConversations.map((conversation) => <option value={conversation.id} key={conversation.id}>{conversation.title}</option>)}
+                  </select>
+                </label>
                 {agentConfigLoading ? <span className="agent-config-loading">Loading Pi options</span> : agentConfig?.map((config) => (
                   <label className="agent-bottom-select" key={config.id}>
                     <span>{config.name}</span>
@@ -1284,8 +1294,6 @@ export default function Dashboard() {
                 <details className="conversation-menu" ref={conversationMenuRef}>
                   <summary aria-label="Conversation actions"><DotsThreeVertical size={18} weight="bold" /></summary>
                   <div className="conversation-menu-popover">
-                    <div className="conversation-menu-section-label">Conversations</div>
-                    <div className="active-conversations">{agentConversations.slice(0, 8).map((conversation) => <button type="button" className={conversation.id === activeConversationId ? "selected" : ""} key={conversation.id} onClick={() => void openAgentConversation(conversation)}><span>{conversation.id === activeConversationId ? <Check size={14} weight="bold" /> : <span className="conversation-dot" />}{conversation.title}</span>{conversation.id === activeConversationId ? <small>Open</small> : null}</button>)}</div>
                     {archivedConversations.length ? <div className="archived-conversations"><div className="conversation-menu-section-label"><Archive size={13} weight="duotone" /> Archived</div>{archivedConversations.map((conversation) => <button type="button" key={conversation.id} onClick={() => void api.restoreAgentConversation(conversation.id).then((restored) => { setArchivedConversations((items) => items.filter((item) => item.id !== restored.id)); setAgentConversations((items) => [restored, ...items]); })}><span><Archive size={14} />{conversation.title}</span><small>Restore</small></button>)}</div> : null}
                     <button type="button" onClick={() => void createAgentConversation()} disabled={agentRunning}>
                       <Plus size={15} weight="bold" /> New conversation
