@@ -98,6 +98,7 @@ In the Dashboard, open **MCP**, add or enable Gmail using `apps/mcp-gmail-wrappe
 
 ## Future additions
 
+- Gemini CLI harness adapter behind the shared Agent interface, using Google authentication and its free personal-account quota where available
 - Dedicated Agent session manager: concurrent conversations, per-session run state, event routing, cancellation, cleanup, and safe concurrency limits
 - Gmail triage workflow: summarize important messages, create Board tasks, and suggest due dates
 - A dedicated Autonomous Agents tab with schedules, budgets, checkpoints, approvals, pause/stop controls, and complete ledger visibility
