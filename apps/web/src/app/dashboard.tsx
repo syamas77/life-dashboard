@@ -1265,20 +1265,10 @@ export default function Dashboard() {
                 <button type="submit" disabled={agentRunning || !agentInput.trim()} aria-label="Send message"><ArrowRight size={18} weight="bold" /></button>
               </form>
               <div className="agent-bottom-controls">
-                <label className="agent-bottom-select conversation-select">
+                <div className="agent-current-conversation">
                   <span>Conversation</span>
-                  <select
-                    value={activeConversationId ?? ""}
-                    onChange={(event) => {
-                      const conversation = agentConversations.find((item) => item.id === Number(event.target.value));
-                      if (conversation) void openAgentConversation(conversation);
-                    }}
-                    disabled={agentRunning || agentConfigLoading}
-                  >
-                    {!agentConversations.length ? <option value="">No saved conversations</option> : null}
-                    {agentConversations.map((conversation) => <option value={conversation.id} key={conversation.id}>{conversation.title}</option>)}
-                  </select>
-                </label>
+                  <strong>{agentConversations.find((conversation) => conversation.id === activeConversationId)?.title ?? "No saved conversation"}</strong>
+                </div>
                 {agentConfigLoading ? <span className="agent-config-loading">Loading Pi options</span> : agentConfig?.map((config) => (
                   <label className="agent-bottom-select" key={config.id}>
                     <span>{config.name}</span>
