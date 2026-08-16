@@ -1294,6 +1294,8 @@ export default function Dashboard() {
                 <details className="conversation-menu" ref={conversationMenuRef}>
                   <summary aria-label="Conversation actions"><DotsThreeVertical size={18} weight="bold" /></summary>
                   <div className="conversation-menu-popover">
+                    <div className="conversation-menu-section-label">Conversations</div>
+                    <div className="active-conversations">{agentConversations.slice(0, 8).map((conversation) => <button type="button" className={conversation.id === activeConversationId ? "selected" : ""} key={conversation.id} onClick={() => void openAgentConversation(conversation)}><span>{conversation.id === activeConversationId ? <Check size={14} weight="bold" /> : <span className="conversation-dot" />}{conversation.title}</span>{conversation.id === activeConversationId ? <small>Open</small> : null}</button>)}</div>
                     {archivedConversations.length ? <div className="archived-conversations"><div className="conversation-menu-section-label"><Archive size={13} weight="duotone" /> Archived</div>{archivedConversations.map((conversation) => <button type="button" key={conversation.id} onClick={() => void api.restoreAgentConversation(conversation.id).then((restored) => { setArchivedConversations((items) => items.filter((item) => item.id !== restored.id)); setAgentConversations((items) => [restored, ...items]); })}><span><Archive size={14} />{conversation.title}</span><small>Restore</small></button>)}</div> : null}
                     <button type="button" onClick={() => void createAgentConversation()} disabled={agentRunning}>
                       <Plus size={15} weight="bold" /> New conversation

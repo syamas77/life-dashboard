@@ -570,6 +570,11 @@ h1 { margin: 0; font-size: clamp(34px, 4vw, 50px); line-height: 1; letter-spacin
 .conversation-menu-popover button { display: flex; align-items: center; gap: 9px; min-height: 38px; padding: 0 10px; border: 0; border-radius: 6px; background: transparent; color: var(--ink); cursor: pointer; text-align: left; font-size: 13px; }
 .conversation-menu-popover button:hover { background: var(--panel-soft); }
 .conversation-menu-section-label { display: flex; align-items: center; gap: 6px; padding: 7px 9px 4px; color: var(--muted); font: 650 9px/1 var(--font-geist-mono), monospace; letter-spacing: .06em; text-transform: uppercase; }
+.active-conversations { display: grid; gap: 2px; max-height: 210px; overflow-y: auto; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
+.conversation-menu-popover .active-conversations button span { display: flex; align-items: center; gap: 8px; min-width: 0; overflow: hidden; }
+.conversation-menu-popover .active-conversations button span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.active-conversations button.selected { background: var(--panel-soft); font-weight: 650; }
+.conversation-dot { width: 6px; height: 6px; margin: 0 4px; border-radius: 50%; background: var(--brand-muted); }
 .conversation-menu-popover .archived-conversations button span { display: flex; align-items: center; gap: 8px; min-width: 0; overflow: hidden; }
 .conversation-menu-popover .archived-conversations button span svg { flex: 0 0 auto; color: var(--faint); }
 .conversation-menu-popover button:disabled { opacity: .4; cursor: not-allowed; }
