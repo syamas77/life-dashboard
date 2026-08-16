@@ -86,6 +86,17 @@ Agent → life-dashboard extension → FastAPI policy API
 
 The gateway is generic; it does not inherently call Apple Reminders, GitHub, or Gmail. It launches whichever executable is stored in the selected server record. It lives in `apps/mcp-gateway`; it is independent of any particular MCP server and can launch local stdio servers. Read-only tools run immediately when allowed. Write tools create an approval card in the Agent panel and are executed only after the user approves the exact server, tool, and arguments.
 
+### Harness-neutral Life Dashboard tools
+
+The shared Dashboard MCP server lives in `apps/mcp-life-dashboard`. Build it with `npm install && npm run build`, then add it in the Dashboard MCP tab as a local stdio server:
+
+```text
+Command: /absolute/path/to/node
+Arguments: /absolute/path/to/apps/mcp-life-dashboard/dist/src/index.js
+```
+
+It exposes `inbox_create`, `task_create`, `mcp_list_tools`, and `mcp_call` to any MCP-capable harness. Connected MCP writes still pass through the FastAPI approval gateway. The Pi extension remains a compatibility path while other harnesses adopt this server.
+
 ### Choose the Agent harness
 
 Pi is the default harness. Gemini CLI is available as an ACP-compatible alternative. Install and authenticate Gemini CLI, then set this in `apps/api/.env`:
