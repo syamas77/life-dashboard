@@ -1,4 +1,5 @@
 import json
+import shutil
 from collections.abc import AsyncIterator
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -30,17 +31,27 @@ router = APIRouter(prefix="/agent", tags=["agent"])
 @router.get("/status", response_model=AgentStatusRead)
 def agent_status() -> AgentStatusRead:
     settings = get_settings()
+    if settings.agent_harness == "gemini":
+        available = bool(
+            shutil.which(settings.agent_gemini_command)
+            or Path(settings.agent_gemini_command).is_file()
+        )
+        detail = (
+            "Gemini CLI is ready for ACP."
+            if available
+            else "Gemini CLI is missing. Install it and authenticate with `gemini`."
+        )
+        return AgentStatusRead(available=available, adapter="gemini-cli", detail=detail)
+
     adapter_exists = Path(settings.agent_command).is_file()
     launcher_exists = Path(settings.agent_pi_command).is_file()
     available = adapter_exists and launcher_exists
-
     if not adapter_exists:
         detail = "pi-acp is not installed. Run npm install in apps/agent."
     elif not launcher_exists:
         detail = "The restricted Pi launcher is missing."
     else:
         detail = "The pinned pi-acp adapter and restricted Pi launcher are ready."
-
     return AgentStatusRead(available=available, adapter="pi-acp@0.0.33", detail=detail)
 
 

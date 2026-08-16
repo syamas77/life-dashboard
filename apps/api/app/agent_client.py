@@ -2,6 +2,7 @@ import asyncio
 import contextlib
 import json
 import os
+import shutil
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -206,22 +207,30 @@ class LifeDashboardAcpClient(Client):
         return None
 
 
-def _agent_process_configuration(settings: Settings) -> tuple[str, dict[str, str]]:
+def _agent_process_configuration(settings: Settings) -> tuple[str, list[str], dict[str, str]]:
+    environment = os.environ.copy()
+    if settings.agent_harness == "gemini":
+        command = settings.agent_gemini_command
+        if not shutil.which(command) and not Path(command).is_file():
+            raise RuntimeError(
+                f"Gemini CLI was not found at {command}. "
+                "Install it and run `gemini` once to authenticate."
+            )
+        return command, ["--acp"], environment
+
     command = Path(settings.agent_command)
     pi_command = Path(settings.agent_pi_command)
     if not command.is_file():
         raise RuntimeError(f"pi-acp is not installed at {command}. Run npm install in apps/agent.")
     if not pi_command.is_file():
         raise RuntimeError(f"The restricted Pi launcher is missing at {pi_command}.")
-
-    environment = os.environ.copy()
     environment.update(
         {
             "PI_ACP_PI_COMMAND": str(pi_command),
             "LIFE_API_INTERNAL_URL": settings.agent_internal_api_url,
         }
     )
-    return str(command), environment
+    return str(command), [], environment
 
 
 @asynccontextmanager
@@ -231,11 +240,12 @@ async def open_pi_session(
 ) -> AsyncIterator[
     tuple[LifeDashboardAcpClient, ClientSideConnection, str, list[SessionConfigOptionSelect]]
 ]:
-    command, environment = _agent_process_configuration(settings)
+    command, args, environment = _agent_process_configuration(settings)
     client = LifeDashboardAcpClient()
     async with spawn_agent_process(
         client,
         command,
+        *args,
         env=environment,
         cwd=settings.agent_cwd,
     ) as (connection, _process):

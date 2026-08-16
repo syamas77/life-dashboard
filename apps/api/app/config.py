@@ -11,8 +11,10 @@ class Settings(BaseSettings):
     environment: str = "development"
     database_url: str = "sqlite:///./data/life.db"
     cors_origins: list[str] = ["http://localhost:3000", "http://127.0.0.1:3000"]
+    agent_harness: str = "pi"
     agent_command: str = str(PROJECT_ROOT / "apps/agent/node_modules/.bin/pi-acp")
     agent_pi_command: str = str(PROJECT_ROOT / ".pi/bin/life-pi")
+    agent_gemini_command: str = "gemini"
     agent_cwd: str = str(PROJECT_ROOT)
     agent_timeout_seconds: float = 120.0
     agent_internal_api_url: str = "http://127.0.0.1:8000/api/v1"

@@ -86,6 +86,23 @@ Agent → life-dashboard extension → FastAPI policy API
 
 The gateway is generic; it does not inherently call Apple Reminders, GitHub, or Gmail. It launches whichever executable is stored in the selected server record. It lives in `apps/mcp-gateway`; it is independent of any particular MCP server and can launch local stdio servers. Read-only tools run immediately when allowed. Write tools create an approval card in the Agent panel and are executed only after the user approves the exact server, tool, and arguments.
 
+### Choose the Agent harness
+
+Pi is the default harness. Gemini CLI is available as an ACP-compatible alternative. Install and authenticate Gemini CLI, then set this in `apps/api/.env`:
+
+```bash
+npm install -g @google/gemini-cli
+gemini
+```
+
+Complete Google authentication, then configure:
+
+```bash
+LIFE_AGENT_HARNESS=gemini
+```
+
+Restart FastAPI after changing the harness. Gemini CLI uses ACP over stdio; the Dashboard, Ledger, and MCP policy boundary remain the same.
+
 ### Add Gmail MCP
 
 Gmail uses Google OAuth and is configured locally; credentials are never committed. In Google Cloud Console, enable the Gmail API, create a Desktop OAuth client, and save the downloaded file as `~/.gmail-mcp/gcp-oauth.keys.json`. Then authenticate:
