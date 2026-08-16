@@ -82,13 +82,14 @@ async def agent_configuration() -> AgentConfigurationRead:
 
 
 @router.get("/conversations", response_model=list[AgentConversationRead])
-def list_conversations(session: SessionDep) -> list[AgentConversation]:
+def list_conversations(
+    session: SessionDep,
+    include_archived: bool = Query(False),
+) -> list[AgentConversation]:
     cleanup_old_conversations(session)
-    statement = (
-        select(AgentConversation)
-        .where(AgentConversation.archived_at.is_(None))
-        .order_by(AgentConversation.updated_at.desc())
-    )
+    statement = select(AgentConversation).order_by(AgentConversation.updated_at.desc())
+    if not include_archived:
+        statement = statement.where(AgentConversation.archived_at.is_(None))
     return list(session.scalars(statement))
 
 

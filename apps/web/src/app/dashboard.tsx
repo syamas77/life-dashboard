@@ -227,6 +227,7 @@ export default function Dashboard() {
   const [agentConfigLoading, setAgentConfigLoading] = useState(false);
   const [agentSelections, setAgentSelections] = useState<Record<string, string>>({});
   const [agentConversations, setAgentConversations] = useState<AgentConversation[]>([]);
+  const [archivedConversations, setArchivedConversations] = useState<AgentConversation[]>([]);
   const [activeConversationId, setActiveConversationId] = useState<number | null>(null);
   const [agentRuns, setAgentRuns] = useState<AgentRun[]>([]);
   const [agentLedger, setAgentLedger] = useState<AgentLedgerEntry[]>([]);
@@ -469,11 +470,12 @@ export default function Dashboard() {
   function loadAgentWorkspace() {
     if (agentConfig || agentConfigLoading) return;
     setAgentConfigLoading(true);
-    Promise.all([api.getAgentConfiguration(), api.listAgentConversations()])
-      .then(async ([configuration, conversations]) => {
+    Promise.all([api.getAgentConfiguration(), api.listAgentConversations(), api.listAgentConversations(true)])
+      .then(async ([configuration, conversations, allConversations]) => {
         setAgentConfig(configuration.options);
         setAgentSelections(Object.fromEntries(configuration.options.map((option) => [option.id, option.current_value])));
         setAgentConversations(conversations);
+        setArchivedConversations(allConversations.filter((conversation) => conversation.archived_at));
         if (conversations[0]) await openAgentConversation(conversations[0]);
       })
       .catch((error) => {
@@ -1292,6 +1294,7 @@ export default function Dashboard() {
                 <details className="conversation-menu" ref={conversationMenuRef}>
                   <summary aria-label="Conversation actions"><DotsThreeVertical size={18} weight="bold" /></summary>
                   <div className="conversation-menu-popover">
+                    {archivedConversations.length ? <div className="archived-conversations"><strong>Archived</strong>{archivedConversations.map((conversation) => <button type="button" key={conversation.id} onClick={() => void api.restoreAgentConversation(conversation.id).then((restored) => { setArchivedConversations((items) => items.filter((item) => item.id !== restored.id)); setAgentConversations((items) => [restored, ...items]); })}>{conversation.title}<small>Restore</small></button>)}</div> : null}
                     <button type="button" onClick={() => void createAgentConversation()} disabled={agentRunning}>
                       <Plus size={15} weight="bold" /> New conversation
                     </button>

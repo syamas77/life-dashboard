@@ -50,6 +50,7 @@ export type AgentConversation = {
   acp_session_id: string | null;
   model: string | null;
   thinking_level: string | null;
+  archived_at: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -216,7 +217,8 @@ export const api = {
   getAgentConfiguration: () => request<AgentConfiguration>("/agent/configuration"),
   listAgentRuns: () => request<AgentRun[]>("/agent/runs"),
   listAgentLedger: () => request<AgentLedgerEntry[]>("/agent/ledger"),
-  listAgentConversations: () => request<AgentConversation[]>("/agent/conversations"),
+  listAgentConversations: (includeArchived = false) => request<AgentConversation[]>(`/agent/conversations${includeArchived ? "?include_archived=true" : ""}`),
+  restoreAgentConversation: (conversationId: number) => request<AgentConversation>(`/agent/conversations/${conversationId}/restore`, { method: "POST" }),
   createAgentConversation: () => request<AgentConversation>("/agent/conversations", { method: "POST", body: {} }),
   listAgentMessages: (conversationId: number) => request<AgentMessageRecord[]>(`/agent/conversations/${conversationId}/messages`),
   deleteAgentConversation: (conversationId: number) => request<void>(`/agent/conversations/${conversationId}`, { method: "DELETE" }),
