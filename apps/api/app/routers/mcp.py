@@ -209,7 +209,23 @@ async def test_mcp_server(
     try:
         result = await run_mcp_gateway(settings_from(request), server, action="inspect")
         raw_tools = result.get("tools") if isinstance(result.get("tools"), list) else []
-        server.discovered_tools = [tool for tool in raw_tools if isinstance(tool, dict)][:100]
+        previous_tools = {
+            tool.get("name"): tool
+            for tool in server.discovered_tools
+            if isinstance(tool, dict)
+        }
+        normalized_tools: list[dict[str, object]] = []
+        for tool in raw_tools[:100]:
+            if not isinstance(tool, dict):
+                continue
+            normalized = dict(tool)
+            if (
+                not normalized.get("annotations")
+                and previous_tools.get(tool.get("name"), {}).get("annotations")
+            ):
+                normalized["annotations"] = previous_tools[tool.get("name")]["annotations"]
+            normalized_tools.append(normalized)
+        server.discovered_tools = normalized_tools
         server.last_tested_at = utc_now()
         server.last_error = None
         store_from(request).update(server)
