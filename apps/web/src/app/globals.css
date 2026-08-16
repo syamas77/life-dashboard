@@ -368,6 +368,9 @@ h1 { margin: 0; font-size: clamp(34px, 4vw, 50px); line-height: 1; letter-spacin
 .mcp-server-actions button:disabled, .mcp-tool-row button:disabled { opacity: .45; cursor: wait; }
 .mcp-server-actions span { color: var(--faint); font: 500 8.5px/1 var(--font-geist-mono), monospace; }
 .mcp-server-error { margin: 9px 0 0; color: var(--danger); font-size: 9.5px; line-height: 1.45; }
+.mcp-auth-warning { display: grid; gap: 7px; margin-top: 12px; padding: 13px 14px; border: 1px solid color-mix(in srgb, var(--danger) 28%, transparent); border-radius: 8px; background: color-mix(in srgb, var(--danger) 6%, transparent); color: var(--muted); font-size: 12px; }
+.mcp-auth-warning strong { color: var(--danger); font-size: 13px; }
+.mcp-auth-warning code { overflow-x: auto; padding: 8px 9px; border-radius: 5px; background: color-mix(in srgb, var(--canvas) 80%, transparent); color: var(--ink); font: 11px/1.4 var(--font-geist-mono), monospace; }
 .mcp-tool-list { margin-top: 13px; border-top: 1px solid var(--line); }
 .mcp-tool-row { min-height: 62px; display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto; align-items: center; gap: 12px; border-bottom: 1px solid var(--line); }
 .mcp-tool-row:last-child { border-bottom: 0; }

@@ -1093,6 +1093,13 @@ export default function Dashboard() {
                       <span>{server.last_tested_at ? `Last tested ${new Intl.DateTimeFormat("en", { hour: "numeric", minute: "2-digit" }).format(new Date(server.last_tested_at))}` : "Not tested yet"}</span>
                     </div>
                     {server.last_error ? <p className="mcp-server-error">{server.last_error}</p> : null}
+                    {server.id === "gmail" && server.last_error && /auth|credential|token|unauthor/i.test(server.last_error) ? (
+                      <div className="mcp-auth-warning">
+                        <strong>Gmail needs re-authentication</strong>
+                        <span>Run this command in a terminal, complete Google’s browser flow, then test Gmail again:</span>
+                        <code>AUTH_SERVER_PORT=45878 npx @shinzolabs/gmail-mcp auth</code>
+                      </div>
+                    ) : null}
                     {tools.length ? (
                       <details className="mcp-tools-dropdown">
                         <summary><span>Tools</span><strong>{tools.length} discovered · {server.allowed_tools.length} allowed</strong></summary>
